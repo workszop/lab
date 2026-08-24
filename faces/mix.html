@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch Mix – a bit of everything</title>
+<link rel="stylesheet" href="shared/edulab.css">
+<link rel="stylesheet" href="shared/chrome.css">
+<link rel="stylesheet" href="shared/palette.css">
+<link rel="stylesheet" href="shared/sheet.css">
+</head>
+<body class="edu">
+<header class="edu-header"><div class="edu-header-inner">
+  <a class="edu-home" href="index.html" aria-label="edulab – all sheets" title="All sheets">
+    <img class="edu-logo" alt="" src="shared/edulab-mark-teal.png">
+    <span class="edu-wordmark">edulab</span>
+  </a>
+  <span class="edu-tag">demo lab</span>
+  <div class="right">
+    <button id="redraw" class="edu-btn" title="new sheet (r)">Redraw</button>
+    <a class="edu-btn ghost" href="index.html" title="all sheets">Home</a>
+  </div>
+</div></header>
+<main>
+<div class="sheet" id="sheet" aria-label="Mixed sheet: faces, figures, critters, tattoo flash and space, shuffled together"><canvas id="c" aria-hidden="true"></canvas></div>
+
+<div class="bar">
+  <button id="save" class="edu-btn ghost" title="save the whole sheet (s)">Save sheet PNG</button>
+</div>
+</main>
+
+<script src="shared/pen.js"></script>
+<script src="shared/sheet.js"></script>
+<script src="faces.js"></script>
+<script src="figures.js"></script>
+<script src="animals.js"></script>
+<script src="tattoo.js"></script>
+<script src="space.js"></script>
+<script>
+/* ============================================================
+   MIX – one cell from any collection. The collections register
+   themselves (Sheet.register in faces.js … space.js); this sheet
+   only rolls which hand draws each cell and passes the pen.
+   ============================================================ */
+const MIX_WEIGHTS = { faces: 1, figures: 0.2, animals: 1, tattoo: 1, space: 1 };   // figures kept rare
+const MIX = Object.keys(MIX_WEIGHTS);
+/* each collection gets its own salt, so the cell that picked it doesn't share its random stream —
+   without this, the collection choice and the drawing's first roll would use the same number,
+   and every mixed face (say) would land in the same corner of its own tables */
+const SALT = Object.fromEntries(MIX.map((n, i) => [n, (0x9E3779B9 * (i + 1)) >>> 0]));
+
+function drawMix(cx, cy, seed, { big = false } = {}) {
+  pen.seed(seed);
+  const name = wpick(MIX_WEIGHTS);
+  const cfg = COLLECTIONS[name];
+  pen.ctx.save();
+  if (big && (cfg.zoom || 1) !== 1) pen.ctx.scale(cfg.zoom, cfg.zoom);   // each collection keeps its own viewer magnification
+  const who = cfg.draw(cx, cy, (seed ^ SALT[name]) >>> 0, { big }) || {};
+  pen.ctx.restore();
+  return { c: name, ...who };
+}
+
+Sheet.init({ name: 'mix', H: 2420, draw: drawMix, census: ['c'], zoom: 1 });
+</script>
+</body>
+</html>

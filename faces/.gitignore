@@ -1,0 +1,19 @@
+# intermediate working artifacts – never committed
+mockups/
+plans/
+superpowers/
+docs/superpowers/
+progress.md
+review*.md
+*.plan.md
+*.draft.*
+scratch/
+scratchpad/
+
+# reference / inspiration images (large binaries)
+*.jpeg
+*.jpg
+
+# editor / OS noise
+.DS_Store
+*.swp

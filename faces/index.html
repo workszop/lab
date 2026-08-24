@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketchbook – pick a sheet</title>
+<link rel="stylesheet" href="shared/edulab.css">
+<link rel="stylesheet" href="shared/chrome.css">
+<link rel="stylesheet" href="shared/palette.css">
+<style>
+  :root { --bar-h: 62px; }
+  .edu-header { position: sticky; top: 0; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 30px 30px 70px; }
+  .lede { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 0 0 22px; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--h3); letter-spacing: -.01em; }
+  .lede p { font-family: var(--font-mono); font-size: var(--caption); color: var(--ink-3); }
+
+  /* ─── The tiles: one card per sheet, a freshly drawn preview on each ─── */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 22px; }
+  .tile {
+    display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm); overflow: hidden;
+    text-decoration: none; color: var(--ink);
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .tile:hover { box-shadow: var(--shadow-md); border-color: var(--line-2); }
+  .tile:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--shadow-md); }
+  .thumb { display: block; line-height: 0; background: var(--canvas); border-bottom: 1px solid var(--line); }
+  .thumb canvas { width: 100%; height: auto; aspect-ratio: 750 / 605; display: block; }
+  .tile[data-state="drawing"] { cursor: progress; }
+  .tile-text { display: flex; align-items: baseline; gap: 10px; padding: 13px 16px 15px; }
+  .tile-name { font-family: var(--font-display); font-weight: 700; font-size: var(--h4); }
+  .tile-blurb { font-size: var(--body-sm); color: var(--ink-2); }
+  .tile kbd {
+    margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+    border: 1px solid var(--line-2); border-radius: var(--r-xs); padding: 1px 6px; background: var(--paper);
+  }
+  .sr-only { position: absolute; left: -9999px; }
+  @media (max-width: 768px) {
+    main { padding: 16px 12px 40px; }
+    .tiles { gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .tile kbd { display: none; }
+  }
+</style>
+</head>
+<body class="edu">
+<header class="edu-header"><div class="edu-header-inner">
+  <a class="edu-home" href="index.html" aria-label="edulab – all sheets" title="All sheets">
+    <img class="edu-logo" alt="" src="shared/edulab-mark-teal.png">
+    <span class="edu-wordmark">edulab</span>
+  </a>
+  <span class="edu-tag">Sketched by code</span>
+  <div class="right">
+    <button id="redrawTiles" class="edu-btn" title="draw new previews (r)">Redraw previews</button>
+  </div>
+</div></header>
+<main>
+  <div class="lede">
+    <h1>Pick a sheet</h1>
+    <p>six sheets, previews drawn fresh on every visit · keys 1–6 open one · r redraws</p>
+  </div>
+  <div class="tiles" id="tiles" role="list" aria-label="Sketch sheets" data-state="drawing"></div>
+</main>
+<p class="sr-only" id="hubLive" aria-live="polite"></p>
+
+<script src="shared/pen.js"></script>
+<script src="shared/sheet.js"></script>
+<script src="faces.js"></script>
+<script src="figures.js"></script>
+<script src="animals.js"></script>
+<script src="tattoo.js"></script>
+<script src="space.js"></script>
+<script>
+/* ============================================================
+   THE INDEX – one tile per sheet, each with a little preview
+   really drawn by that sheet's hand: the collections register
+   themselves (Sheet.register in faces.js … space.js) and the
+   tiles borrow their draw functions, a few cells at a time,
+   exactly like the mix sheet does. Sheet.init is never called
+   here: this page owns its own tiny grid.
+   ============================================================ */
+
+/* ─── Constants ─── */
+const TILES = [
+  { id: 'faces',   label: 'Faces',   blurb: 'ink & marker portraits',   file: 'faces.html' },
+  { id: 'figures', label: 'Figures', blurb: 'whole people, head to toe', file: 'figures.html' },
+  { id: 'animals', label: 'Animals', blurb: 'a pageful of critters',    file: 'animals.html' },
+  { id: 'tattoo',  label: 'Tattoo',  blurb: 'old-school flash',         file: 'tattoo.html' },
+  { id: 'space',   label: 'Space',   blurb: 'rockets, rovers & aliens', file: 'space.html' },
+  { id: 'mix',     label: 'Mix',     blurb: 'every hand, shuffled',     file: 'mix.html' },
+];
+const PCOLS = 3, PROWS = 2;            // cells per preview
+const STD_H = 2420 / ROWS;             // the standard cell; taller collections are scaled to fit it
+/* the mix preview rolls which hand draws each cell, weights and salts as in mix.html */
+const MIX_W = { faces: 1, figures: 0.2, animals: 1, tattoo: 1, space: 1 };
+const MIX_SALT = Object.fromEntries(Object.keys(MIX_W).map((n, i) => [n, (0x9E3779B9 * (i + 1)) >>> 0]));
+/* a seed on the index travels on to whichever sheet is opened */
+const seedQ = params.get('seed') !== null ? `?seed=${encodeURIComponent(params.get('seed'))}` : '';
+
+/* ─── State ─── */
+const HUB = { master: 0, run: 0, drawnW: 0 };   // run: supersession token for the tile chain · drawnW: width the previews were drawn at
+
+/* ─── DOM refs ─── */
+const tilesEl = document.getElementById('tiles');
+const liveEl = document.getElementById('hubLive');
+
+/* ─── Helpers ─── */
+/* old deep links (index.html#space, #faces-colour, #flash) still land: they go straight to the sheet */
+function redirectFromHash() {
+  const id = location.hash.replace('#', '').replace('faces-colour', 'faces').replace('flash', 'tattoo');
+  const t = TILES.find(x => x.id === id);
+  if (t) { location.replace(t.file + seedQ); return true; }
+  return false;
+}
+
+/* ─── Render ─── */
+tilesEl.innerHTML = TILES.map((t, i) => `
+  <a class="tile" role="listitem" href="${t.file}${seedQ}" data-collection="${t.id}" data-state="drawing">
+    <span class="thumb"><canvas aria-hidden="true"></canvas></span>
+    <span class="tile-text">
+      <span class="tile-name">${t.label}</span>
+      <span class="tile-blurb">${t.blurb}</span>
+      <kbd>${i + 1}</kbd>
+    </span>
+  </a>`).join('');
+TILES.forEach((t, i) => { t.el = tilesEl.children[i]; t.cvs = t.el.querySelector('canvas'); });
+
+/* one cell of one collection, scaled so a taller hand (figures) still fits the standard cell */
+function drawTileCell(name, cx, cy, seed) {
+  const cfg = COLLECTIONS[name];
+  const fit = STD_H / ((cfg.H || 2420) / ROWS);
+  pen.ctx.save();
+  if (fit !== 1) { pen.ctx.translate(cx, cy); pen.ctx.scale(fit, fit); pen.ctx.translate(-cx, -cy); }
+  cfg.draw(cx, cy, seed, { big: false });
+  pen.ctx.restore();
+}
+function drawMixCell(cx, cy, seed) {
+  pen.seed(seed);
+  const name = wpick(MIX_W);
+  drawTileCell(name, cx, cy, (seed ^ MIX_SALT[name]) >>> 0);
+}
+
+function renderTile(t) {
+  const vw = CELL_W * PCOLS, vh = STD_H * PROWS;
+  const k = Math.min(MAX_DPR, window.devicePixelRatio || 1) * Math.max(0.4, (t.cvs.clientWidth || 320) / vw);
+  t.cvs.width = Math.round(vw * k);
+  t.cvs.height = Math.round(vh * k);
+  const ctx = t.cvs.getContext('2d');
+  pen.ctx = ctx;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(0, 0, vw, vh);
+  for (let row = 0; row < PROWS; row++) for (let col = 0; col < PCOLS; col++) {
+    const seed = CELL_SEED(t.seed, row, col);
+    pen.seed(seed);                       // pre-roll placement jitter, as the sheets do
+    const cx = CELL_W * (col + 0.5) + rf(-10, 10);
+    const cy = STD_H * (row + 0.5) + rf(-8, 8);
+    pen.reset();
+    if (t.id === 'mix') drawMixCell(cx, cy, (seed ^ DRAW_SALT) >>> 0);
+    else drawTileCell(t.id, cx, cy, (seed ^ DRAW_SALT) >>> 0);
+  }
+  /* force rasterisation before moving on: fully drawn tiles were observed live (GitHub Pages)
+     staying blank on screen because Chrome's deferred canvas ops were never composited; this
+     1px readback flushes them. Retest there before removing */
+  ctx.getImageData(0, 0, 1, 1);
+  t.el.dataset.state = 'ready';
+}
+
+/* render every tile at the current seeds, one per afterPaint step (shared/sheet.js): the timer
+   backup keeps the chain alive where bare rAF freezes (a throttled or occluded window — seen live
+   on GitHub Pages), the yield between tiles keeps the page responsive, and the run token lets a
+   newer redraw supersede an older chain instead of queueing behind it */
+function renderAll(announce) {
+  const run = ++HUB.run;
+  tilesEl.dataset.state = 'drawing';
+  let bad = 0, i = 0;
+  afterPaint(function step() {
+    if (run !== HUB.run) return;                        // a newer redraw took over
+    if (i >= TILES.length) {
+      HUB.drawnW = TILES[0].cvs.clientWidth || 0;
+      /* DOM contract: the grid is 'ready' only if every tile is */
+      tilesEl.dataset.state = bad ? 'error' : 'ready';
+      if (announce) liveEl.textContent = bad ? `${bad} of ${TILES.length} previews failed` : `previews redrawn, seed ${HUB.master}`;
+      return;
+    }
+    const t = TILES[i++];
+    t.el.dataset.seed = t.seed;                         // the seed attempted, drawn or not
+    try { renderTile(t); }
+    catch (e) { bad++; t.el.dataset.state = 'error'; console.error(`tile ${t.id}:`, e); }   // one bad hand must not blank the rest
+    afterPaint(step);
+  });
+}
+
+/* roll new seeds for every tile, then render */
+function drawTiles(master, announce) {
+  HUB.master = master >>> 0;
+  tilesEl.dataset.seed = HUB.master;
+  for (let i = 0; i < TILES.length; i++) {
+    TILES[i].seed = CELL_SEED(HUB.master, i + 1, 7);
+    TILES[i].el.dataset.state = 'drawing';
+  }
+  try { history.replaceState(null, '', `?seed=${HUB.master}`); } catch (_) { /* file:// */ }
+  renderAll(announce);
+}
+
+/* ─── Listeners ─── */
+document.getElementById('redrawTiles').addEventListener('click', () => drawTiles((Math.random() * 2 ** 32) >>> 0, true));
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;   // auto-repeat must not storm redraws
+  const n = Number(e.key);
+  if (n >= 1 && n <= TILES.length) { e.preventDefault(); location.href = TILES[n - 1].file + seedQ; }
+  else if (e.key === 'r') { e.preventDefault(); drawTiles((Math.random() * 2 ** 32) >>> 0, true); }
+});
+window.addEventListener('hashchange', redirectFromHash);
+/* previews re-render at the new size when the window really changes shape (same seeds, same drawings) */
+let resizeT = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    const w = TILES[0].cvs.clientWidth || 0;
+    if (HUB.drawnW && Math.abs(w - HUB.drawnW) / HUB.drawnW < 0.15) return;
+    renderAll(false);
+  }, 200);
+});
+
+/* ─── Init ─── */
+if (!redirectFromHash()) drawTiles(urlSeed(), false);
+</script>
+</body>
+</html>

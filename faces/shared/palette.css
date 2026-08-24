@@ -1,0 +1,48 @@
+/* ─── The drawing palette: the paper, the three inks, the viewer's dim, the marker box every
+   sheet reaches for (skins, hair, tints, hats, accents, blush), and each collection's own
+   colours (cloth, fur, flash, space) — all here, one source of truth, so any sheet (the mix
+   included) can draw any collection. The drawing code reads these via tok()/toks(). ─── */
+:root {
+  /* the drawing paper: plain white (= --surface); and the two other inks a sketcher reaches for */
+  --canvas: #FFFFFF; --ink-sepia: #5B3F2E; --ink-blue: #1B4E88;
+  --dim: rgba(33, 30, 26, .55);
+  /* marker palette: skins, hair, hats, accents — washed on under the ink */
+  --skin-1: #e9c2a6; --skin-2: #dca884; --skin-3: #caa07a; --skin-4: #b9855e;
+  --skin-5: #e6b9b0; --skin-6: #a36d4b; --skin-7: #7f5236;
+  --hair-1: #3a2a22; --hair-2: #2c3340; --hair-3: #5a3b2b; --hair-4: #4a4642;
+  --tint-1: #c9a46a; --tint-2: #a8765a; --tint-3: #b7b3aa; --tint-4: #8c6b7a;
+  --hat-1: #6b7f98; --hat-2: #7d8a5e; --hat-3: #b68b4c; --hat-4: #a9504a; --hat-5: #8d8f91;
+  --accent-1: #b8463e; --accent-2: #4f6f96; --accent-3: #c9962f;
+  --blush: #d98a85;
+
+  /* ── figures ── */
+    /* the figures' own marker box: clothes, washed on under the ink */
+    --cloth-1: #7a93ad; --cloth-2: #c9a24a; --cloth-3: #b05e4c; --cloth-4: #8a9a6a; --cloth-5: #8c6f8e; --cloth-6: #5f8f8a; --cloth-7: #d9c7a0;
+
+  /* ── animals ── */
+    /* fur: orange, grey, brown, cream, tan, near-black, white, pink, frog-green, rust, lion-gold */
+    --fur-1: #d98d4a; --fur-2: #9a9a96; --fur-3: #8a5a3a; --fur-4: #e4cfa3; --fur-5: #c9a06a; --fur-6: #3b3632;
+    --fur-7: #f1ebdc; --fur-8: #e6b0a8; --fur-9: #8fa56a; --fur-10: #c4633a; --fur-11: #d9b05a;
+    --pink: #e4a5a0;
+
+  /* ── tattoo ── */
+    /* the flash palette: red, yellow, green, blue, orange, grey, brown, skin-pink */
+    --tat-red: #b5332f; --tat-yellow: #d9b53a; --tat-green: #3f7a58; --tat-blue: #35598a;
+    --tat-orange: #d0782f; --tat-grey: #8f8f88; --tat-brown: #6f4a2e; --tat-pink: #e3a79a;
+
+  /* ── space ── */
+    /* Space's marker box: a quiet midnight blue, teal, rust, gold and lilac, plus a couple of alien greens. */
+    --space-ink: #27384a;
+    --space-navy: #315878;
+    --space-blue: #5a87ad;
+    --space-teal: #4d9187;
+    --space-green: #86a86d;
+    --space-lime: #a9c45a;
+    --space-gold: #d7a33d;
+    --space-orange: #d77a3d;
+    --space-coral: #c8665d;
+    --space-lilac: #9386aa;
+    --space-silver: #aeb7ba;
+    --space-cream: #e5d5a7;
+    --space-rust: #9c5a3a;
+}

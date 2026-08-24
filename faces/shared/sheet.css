@@ -1,0 +1,67 @@
+/* ─── Sheet chrome, in the edulab idiom: warm paper page, white drawing sheet as a card,
+   marigold primary. The reset, top bar and buttons come from shared/chrome.css; colours and
+   type from shared/edulab.css; the drawing palette from shared/palette.css + each sheet's :root. ─── */
+body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+/* the branded top menu: shown only when a sheet is opened on its own (the hub carries it otherwise) */
+.edu-header { position: sticky; top: 0; display: none; }
+body.standalone .edu-header { display: block; }
+
+main { width: 100%; max-width: 1100px; padding: 22px 30px 70px; display: flex; flex-direction: column; align-items: center; }
+
+/* the pen settings: a toggle in the top bar, and a panel that folds out above the sheet */
+.controls-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 0 14px; max-width: 860px; width: 100%; }
+.controls-wrap:has(.controls[hidden]) { display: none; }
+button.toggle, .edu-header .right .edu-btn { padding: 6px 14px; font-size: 13px; }
+button.toggle[aria-expanded="true"] { background: var(--paper-2); }
+.controls {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: center;
+  padding: 10px 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  max-width: 860px; width: 100%;
+}
+.ctl { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.ctl input[type=range] { width: 110px; accent-color: var(--marigold); }
+.ctl output { min-width: 3ch; color: var(--ink-3); font-size: 11px; }
+.ctl select { font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-2); border-radius: var(--r-pill); padding: 4px 10px; }
+.controls[hidden] { display: none; }
+.controls button { padding: 6px 14px; font-size: 13px; }
+@media (max-width: 768px) { .ctl input[type=range] { width: 84px; } }
+
+/* the paper, and over it a grid of invisible buttons — one per drawing — that carry the
+   keyboard: Tab onto the sheet, arrows to move, Enter or Space (or a click) to enlarge */
+.sheet {
+  position: relative;
+  background: var(--canvas);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  line-height: 0;
+  max-width: 860px; width: 100%;
+}
+canvas { width: 100%; height: auto; display: block; }
+.cells { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--cols, 6), 1fr); grid-template-rows: repeat(var(--rows, 8), 1fr); }
+.cell { background: transparent; border: 0; padding: 0; cursor: zoom-in; border-radius: var(--r-sm); -webkit-tap-highlight-color: transparent; }
+.cell:focus-visible { outline: 3px solid var(--marigold); outline-offset: -3px; }
+.sheet[data-state="drawing"] .cell { cursor: progress; }
+
+/* inside the hub the top bar owns Redraw and the Settings toggle; the sheet keeps Save */
+body:not(.standalone) #redraw, body:not(.standalone) button.toggle { display: none; }
+.bar { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.bar .edu-btn { padding: 12px 22px; }
+
+/* ─── The viewer: one drawing, big, on a transparency checkerboard ─── */
+.viewer { position: fixed; inset: 0; z-index: 60; background: var(--dim); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.viewer[hidden] { display: none; }
+.viewer-card { background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-lg); padding: 16px; display: flex; flex-direction: column; gap: 12px; align-items: center; max-width: 100%; }
+#big { width: min(78vmin, 100%); aspect-ratio: 1; height: auto; display: block; cursor: default; border-radius: var(--r-md);
+       background: repeating-conic-gradient(var(--paper-2) 0 25%, var(--paper-3) 0 50%) 0 0 / 24px 24px; }
+.viewer-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.viewer-bar span { font-family: var(--font-mono); font-size: var(--caption); color: var(--ink-2); margin-right: 6px; }
+
+@media (max-width: 768px) {
+  main { padding: 12px 12px 40px; }
+  .viewer { padding: 6px; }
+  .viewer-card { padding: 8px; }
+  .bar .edu-btn { padding: 10px 16px; }
+}

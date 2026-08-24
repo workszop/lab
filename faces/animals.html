@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch Animals – ink and colour critters</title>
+<link rel="stylesheet" href="shared/edulab.css">
+<link rel="stylesheet" href="shared/chrome.css">
+<link rel="stylesheet" href="shared/palette.css">
+<link rel="stylesheet" href="shared/sheet.css">
+</head>
+<body class="edu">
+<header class="edu-header"><div class="edu-header-inner">
+  <a class="edu-home" href="index.html" aria-label="edulab – all sheets" title="All sheets">
+    <img class="edu-logo" alt="" src="shared/edulab-mark-teal.png">
+    <span class="edu-wordmark">edulab</span>
+  </a>
+  <span class="edu-tag">demo lab</span>
+  <div class="right">
+    <button id="redraw" class="edu-btn" title="new sheet (r)">Redraw</button>
+    <a class="edu-btn ghost" href="index.html" title="all sheets">Home</a>
+  </div>
+</div></header>
+<main>
+<div class="sheet" id="sheet" aria-label="Sheet of sketched animals"><canvas id="c" aria-hidden="true"></canvas></div>
+
+<div class="bar">
+  <button id="save" class="edu-btn ghost" title="save the whole sheet (s)">Save sheet PNG</button>
+</div>
+</main>
+
+<script src="shared/pen.js"></script>
+<script src="shared/sheet.js"></script>
+<script src="animals.js"></script>
+<script>Sheet.init(COLLECTIONS.animals);</script>
+</body>
+</html>

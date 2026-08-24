@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Am I in a Story? – The Narrative Diagnostic</title>
+    <meta name="description" content="A playful narrative diagnostic that matches everyday experiences to cinematic story patterns.">
+    <meta name="theme-color" content="#050b08">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Am I in a Story?">
+    <meta property="og:description" content="Are you a hero, or is the struggle just real? Take the narrative diagnostic.">
+    <meta property="og:url" content="https://workszop.github.io/hero/">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23050b08'/%3E%3Cpath d='M11 13h42v8H35v30h-8V21H11z' fill='%2373f0bb'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Dynamic Background -->
+    <div class="background-layer" id="backgroundLayer" aria-hidden="true"></div>
+
+    <main class="container" id="appRoot"
+          data-screen="landing"
+          data-question-index="0"
+          data-quiz-length="0"
+          data-transitioning="false"
+          data-reality-integrity="100"
+          data-result-category=""
+          data-result-signal-percent=""
+          data-analysis-layout="collider"
+          data-analysis-mode="fabricated"
+          data-analysis-seed=""
+          data-analysis-winner=""
+          data-predictor-category=""
+          data-predictor-percent=""
+          data-category=""
+          data-scene=""
+          data-scene-src=""
+          data-scene-status="idle"
+          data-model-valid=""
+          data-visual-theme="dead-signal"
+          data-ui-theme="dead-signal-dos">
+        <header class="terminal-chrome" aria-label="System status">
+            <div>
+                <span class="terminal-brand">DEAD SIGNAL DOS</span>
+                <span class="terminal-subsystem">// NARRATIVE DIAGNOSTIC</span>
+            </div>
+            <div class="terminal-status">
+                <span>PORT 02</span>
+                <span>LINK: <strong id="linkStatus">UNSTABLE</strong></span>
+                <span>MEM: 640K</span>
+                <span id="chromeScene">SCENE: --</span>
+            </div>
+        </header>
+
+        <section id="landingScreen" class="screen active" aria-labelledby="landingTitle">
+            <div class="landing-grid">
+                <div class="landing-copy">
+                    <div class="boot-log" aria-hidden="true">
+                        <span>DEAD SIGNAL DOS</span>
+                        <span>NARRATIVE DIAGNOSTIC // BUILD 2.7.4</span>
+                        <span>CHANNEL OPEN</span>
+                        <span>SUBJECTIVE REALITY LINK AVAILABLE</span>
+                        <span>SYSTEM READY</span>
+                    </div>
+                    <h1 id="landingTitle">Am I in a Story?</h1>
+                    <div id="introCopy" class="intro-copy">
+                        <h2>Are you living your own story?</h2>
+                        <p>Ever get the nagging feeling that your life is a little too structured? That the same things happen to you at the same time, every single day? That somewhere, somehow, someone might be watching - or worse, writing - what happens next?</p>
+                        <p>Two movies dared to ask a wild question: what if you weren't the author of your own life? What if you were just a character - in someone's novel, someone's screenplay, or maybe even someone's game - completely unaware of it?</p>
+                        <p>Before you dismiss that idea... take this quiz first. We'll ask you a few questions about how you see yourself, how you move through the world, and how you handle the unexpected. Your answers might reveal something surprising about the kind of story you're actually living in.</p>
+                        <p>Are you the hero? A side character? Or maybe... an NPC?</p>
+                    </div>
+                    <button id="startButton" type="button" aria-keyshortcuts="Enter">
+                        <span class="key-hint" aria-hidden="true">&gt;</span>
+                        Run Diagnostic
+                        <span class="button-key" aria-hidden="true">ENTER</span>
+                    </button>
+                </div>
+                <figure class="landing-signal signal-frame">
+                    <div class="signal-frame-header">
+                        <span>INTERCEPT // BASEMENT NODE 02</span>
+                        <span>SIGNAL: 83%</span>
+                    </div>
+                    <div class="signal-image-wrap">
+                        <img id="landingSignal" src="assets/dead-signal/horror.webp"
+                             alt="A lone figure investigates an ominous basement rendered as an EGA game scene."
+                             width="960"
+                             height="720"
+                             decoding="async">
+                    </div>
+                    <figcaption id="landingSceneStatus" role="status" aria-live="polite">UNKNOWN TRANSMISSION // FRAME 0001</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <section id="quizScreen" class="screen" aria-labelledby="questionText" aria-hidden="true">
+            <div class="quiz-grid">
+                <div class="quiz-primary">
+                    <div class="quiz-telemetry">
+                        <div class="hud-container">
+                            <div class="reality-integrity">
+                                <div class="hud-label-row">
+                                    <span class="reality-label">Reality Integrity</span>
+                                    <span class="reality-value" id="realityValue">100%</span>
+                                </div>
+                                <div class="integrity-meter" aria-hidden="true">
+                                    <div class="integrity-meter-fill" id="realityMeterFill"></div>
+                                </div>
+                                <div class="reality-warning" id="realityWarning">Status: Nominal</div>
+                            </div>
+                        </div>
+
+                        <div class="progress-shell">
+                            <p id="progressText" class="progress-text">ACT I // SCENE 01 OF 20</p>
+                            <div class="progress-timeline"
+                                 id="progressTimeline"
+                                 role="progressbar"
+                                 aria-label="Quiz progress"
+                                 aria-describedby="progressText"
+                                 aria-valuemin="0"
+                                 aria-valuemax="20"
+                                 aria-valuenow="0">
+                                <div class="timeline-notches" id="timelineNotches" aria-hidden="true"></div>
+                                <div class="timeline-track">
+                                    <div class="timeline-progress" id="timelineProgress"></div>
+                                </div>
+                                <div class="timeline-playhead" id="timelinePlayhead" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <aside class="genre-predictor" id="genrePredictor" aria-labelledby="predictorLabel" data-mode="random">
+                        <div class="genre-predictor-label" id="predictorLabel">
+                            <span class="signal-dot" aria-hidden="true"></span>
+                            Genre Signal Detection // Live
+                        </div>
+                        <div class="genre-predictor-bars" id="genrePredictorBars" role="list" aria-label="Randomized genre signals">
+                            <div class="genre-predictor-empty" role="listitem">Awaiting narrative data...</div>
+                        </div>
+                        <p class="visually-hidden" id="predictorSummary" aria-live="polite"></p>
+                    </aside>
+
+                    <div class="question-panel">
+                        <div class="panel-kicker">INCOMING QUERY // <span id="questionNumber">SUBJECT 01</span></div>
+                        <h2 id="questionText" class="question-text" tabindex="-1"></h2>
+                        <p class="response-required">Response required: Y / N</p>
+                        <div class="options" role="group" aria-labelledby="questionText">
+                            <button class="option-btn" type="button" data-answer="yes" aria-keyshortcuts="Y">
+                                <span class="button-key" aria-hidden="true">Y</span>
+                                <span>Yes</span>
+                            </button>
+                            <button class="option-btn" type="button" data-answer="no" aria-keyshortcuts="N">
+                                <span class="button-key" aria-hidden="true">N</span>
+                                <span>No</span>
+                            </button>
+                        </div>
+                        <p id="quizStatus" class="quiz-status" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <figure class="signal-scene signal-frame" id="signalSceneFrame">
+                        <div class="signal-frame-header">
+                            <span>VISUAL INTERCEPT // <span id="sceneChannel">CHANNEL --</span></span>
+                            <span id="sceneReadout" role="status" aria-live="polite">LOADING</span>
+                        </div>
+                        <div class="signal-image-wrap">
+                            <img id="signalScene"
+                                 src="assets/dead-signal/fallback.webp"
+                                 alt="An empty underground signal control room."
+                                 width="960"
+                                 height="720"
+                                 decoding="async">
+                        </div>
+                        <figcaption id="sceneCaption">SIGNAL SOURCE UNKNOWN</figcaption>
+                    </figure>
+
+                    <aside class="story-box" aria-labelledby="storyGenre">
+                        <div class="story-label">EVIDENCE BUFFER // CHANNEL 02</div>
+                        <h3 class="story-genre" id="storyGenre">FANTASY EPIC</h3>
+                        <div class="story-content" id="storyContent">The ancient prophecy had been clear: a child would be born under the blood moon, marked by destiny...</div>
+                        <div class="story-page" id="storyPage">LOG PAGE 047</div>
+                    </aside>
+                </div>
+            </div>
+        </section>
+
+        <section id="resultScreen" class="screen" aria-labelledby="resultHeading" aria-hidden="true">
+            <div class="hud-container result-hud">
+                <div class="reality-integrity">
+                    <div class="reality-label">Transmission Complete</div>
+                    <div class="reality-value" id="finalReality">Complete</div>
+                </div>
+                <div class="narrative-tension">
+                    <div class="tension-label">Analysis</div>
+                    <div class="waveform" id="resultWaveform" aria-hidden="true">
+                        <div class="wave-bar"></div><div class="wave-bar"></div>
+                        <div class="wave-bar"></div><div class="wave-bar"></div>
+                        <div class="wave-bar"></div><div class="wave-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-container">
+                <div class="result-classification">
+                    <div class="panel-kicker">FINAL DIAGNOSTIC // TRANSMISSION COMPLETE</div>
+                    <h2 id="resultHeading" tabindex="-1">Primary Narrative Classification</h2>
+                    <div class="classification-rule" aria-hidden="true"></div>
+                    <div class="result-category" id="resultCategory"></div>
+                    <p id="resultText" class="result-text"></p>
+                </div>
+
+                <article class="result-narrative" aria-labelledby="caseFileHeading">
+                    <h3 id="caseFileHeading">Case File Transcript</h3>
+                    <div class="story-content" id="resultStory"></div>
+                    <div class="story-page">LOG STATUS: CLOSED</div>
+                </article>
+
+                <div class="result-actions">
+                    <button id="shareButton" type="button">Copy Report</button>
+                    <button id="playAgainButton" type="button">Reboot Diagnostic</button>
+                </div>
+                <p id="appStatus" class="app-status" role="status" aria-live="polite"></p>
+
+                <section
+                    class="results-dashboard"
+                    id="resultsDashboard"
+                    aria-labelledby="dashboardTitle"
+                    data-analysis-layout="collider"
+                    data-mode="fabricated"
+                    data-winner=""
+                    data-seed="0"
+                >
+                    <header class="collider-header">
+                        <div>
+                            <div class="collider-kicker">APPENDIX C // COLLIDER FIT REPORT</div>
+                            <h3 id="dashboardTitle">Archetype Collider</h3>
+                            <p>Independent genre hypotheses projected through a fourteen-channel narrative collision model. Confidence intervals have been calibrated to look extremely defensible.</p>
+                        </div>
+                        <div class="winner-summary" aria-label="Dominant signal">
+                            <span class="winner-label">Dominant Narrative Signal</span>
+                            <strong class="winner-genre" id="winnerGenre">Awaiting diagnosis</strong>
+                            <span class="winner-score" id="winnerScore">Signal confidence: --</span>
+                        </div>
+                    </header>
+
+                    <div class="collider-metric-strip" id="metricStrip" role="list" aria-label="Collider model diagnostics"></div>
+
+                    <div class="collider-grid">
+                        <section class="collider-panel" aria-labelledby="collisionHeading">
+                            <div class="chart-kicker">MODEL 04-A // LATENT COLLISION SPACE</div>
+                            <h4 id="collisionHeading">Archetype Collision Field</h4>
+                            <p class="chart-note">Marker area indicates trope mass. Distance from origin indicates narrative instability.</p>
+                            <div class="collision-frame">
+                                <svg id="collisionPlot" viewBox="0 0 760 420" role="img" aria-label="Archetype collision field"></svg>
+                            </div>
+                            <div class="collider-legend" id="colliderLegend" role="list" aria-label="Collider category legend"></div>
+                        </section>
+
+                        <section class="collider-panel" aria-labelledby="posteriorHeading">
+                            <div class="chart-kicker">MODEL 04-B // INDEPENDENT POSTERIOR</div>
+                            <h4 id="posteriorHeading">Genre Cross-Section</h4>
+                            <p class="chart-note">Whiskers represent an entirely proprietary uncertainty interval.</p>
+                            <div class="posterior-list" id="posteriorList" role="list" aria-label="Genre confidence percentages"></div>
+                        </section>
+
+                        <section class="collider-panel" aria-labelledby="regressionHeading">
+                            <div class="chart-kicker">MODEL 04-C // TEMPORAL FIT</div>
+                            <h4 id="regressionHeading">Narrative Energy Regression</h4>
+                            <p class="chart-note">Observed plot energy against predicted dramatic necessity across thirty answers.</p>
+                            <div class="regression-frame">
+                                <svg id="regressionPlot" viewBox="0 0 720 250" role="img" aria-label="Narrative energy regression with confidence envelope"></svg>
+                            </div>
+                        </section>
+
+                        <section class="collider-panel" aria-labelledby="coefficientHeading">
+                            <div class="chart-kicker">MODEL 04-D // EFFECT ESTIMATES</div>
+                            <h4 id="coefficientHeading">Coefficients</h4>
+                            <p class="chart-note">Standard errors corrected for montage bias and unreliable narration.</p>
+                            <div class="coefficient-scroll">
+                                <table class="coefficient-table">
+                                    <thead>
+                                        <tr><th>Predictor</th><th>β</th><th>SE</th><th>p</th></tr>
+                                    </thead>
+                                    <tbody id="coefficientBody"></tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+
+                    <footer class="dashboard-footer">
+                        <span>Press R to recalibrate all readings</span>
+                        <span class="dashboard-id" id="dashboardId">Run ID: DS-000000</span>
+                        <button id="recalibrateButton" type="button" aria-keyshortcuts="R">Recalibrate Model</button>
+                    </footer>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
