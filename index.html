@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>edulab · app lab</title>
+<link rel="icon" id="favicon" type="image/png" href="">
 <style>
 /* ============================================================
    edulab — Colors & Type foundation (tokens)
@@ -338,6 +339,7 @@ function renderGrid() {
 }
 
 // ─── Init ───
+document.getElementById('favicon').href = document.querySelector('.edu-logo').src;
 renderFeatured();
 renderGrid();
 lucide.createIcons();
