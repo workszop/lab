@@ -1,0 +1,404 @@
+/* ─── Tokens: the drawing palette (from faces/shared/palette.css) plus the
+   edulab UI tokens the app chrome needs (from faces/shared/edulab.css).
+   pen.js and genome.js read colours only from here via tok()/toks(). ─── */
+:root {
+  /* ── drawing paper & inks ── */
+  --canvas: #FFFFFF;
+  --ink: #211E1A;
+  --ink-sepia: #5B3F2E;
+  --ink-blue: #1B4E88;
+
+  /* ── marker box: skins, hair, tints, hats, accents, blush ── */
+  --skin-1: #e9c2a6; --skin-2: #dca884; --skin-3: #caa07a; --skin-4: #b9855e;
+  --skin-5: #e6b9b0; --skin-6: #a36d4b; --skin-7: #7f5236;
+  --hair-1: #3a2a22; --hair-2: #2c3340; --hair-3: #5a3b2b; --hair-4: #4a4642;
+  --tint-1: #c9a46a; --tint-2: #a8765a; --tint-3: #b7b3aa; --tint-4: #8c6b7a;
+  --hat-1: #6b7f98; --hat-2: #7d8a5e; --hat-3: #b68b4c; --hat-4: #a9504a; --hat-5: #8d8f91;
+  --accent-1: #b8463e; --accent-2: #4f6f96; --accent-3: #c9962f;
+  --blush: #d98a85;
+
+  /* ── edulab UI chrome: background, text, accent teal/marigold ── */
+  --paper: #FBF7F0;
+  --paper-translucent: rgba(251, 247, 240, 0.85); /* --paper at 85% alpha, for the blurred header bar */
+  --paper-2: #F4EDDF;
+  --paper-3: #ECE1CF;
+  --surface: #FFFFFF;
+  --ink-2: #5B554D;
+  --ink-3: #938A7C;
+  --line: #E7DCCB;
+  --line-2: #D6C8B2;
+
+  --marigold: #E8920C;
+  --marigold-600: #CE800A;
+  --marigold-soft: #FBE7C2;
+  --marigold-ink: #8A4F00;
+
+  --teal: #0E8C7F;
+  --teal-600: #0B7468;
+  --teal-soft: #D2EBE6;
+  --teal-ink: #0A5A52;
+
+  /* ── type ── */
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+
+  /* ── app chrome: radius, shadow, focus ── */
+  --on-primary: #FFFFFF;
+  --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(33, 30, 26, 0.06), 0 1px 1px rgba(33, 30, 26, 0.04);
+  --shadow-md: 0 4px 16px rgba(33, 30, 26, 0.08), 0 1px 3px rgba(33, 30, 26, 0.05);
+  --focus-ring: 0 0 0 3px rgba(232, 146, 12, 0.38);
+}
+
+/* ─── Dev harness (dev.html): plain layout, tokens only ─── */
+body.dev {
+  margin: 0;
+  padding: 24px clamp(16px, 4vw, 48px);
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.5 var(--font-ui);
+}
+body.dev h1 { font-size: 1.35rem; margin: 0 0 4px; }
+body.dev h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--ink-2); letter-spacing: 0.04em; text-transform: uppercase; }
+.dev-note { margin: 0; color: var(--ink-2); }
+.dev-note code { background: var(--paper-3); padding: 1px 5px; border-radius: 4px; }
+
+.probe-list { display: flex; flex-direction: column; gap: 6px; }
+.probe-row {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 4px solid var(--line-2);
+  background: var(--surface);
+}
+.probe-row[data-pass="true"] { border-left-color: var(--teal); background: var(--teal-soft); color: var(--teal-ink); }
+.probe-row[data-pass="false"] { border-left-color: var(--marigold-600); background: var(--marigold-soft); color: var(--marigold-ink); }
+
+.face-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 960px;
+}
+.face-cell {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.face-cell canvas { width: 100%; height: auto; display: block; background: var(--canvas); border-radius: 6px; }
+.face-cell figcaption { font-size: 0.75rem; color: var(--ink-2); }
+
+@media (max-width: 768px) {
+  .face-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ============================================================
+   APP CHROME – draw.html: header, layout regions, upload zone,
+   grid, controls, log, probe panel. edulab look, tokens only.
+   ============================================================ */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-ui); min-height: 100vh; }
+
+.edu-header {
+  width: 100%;
+  background: var(--paper-translucent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.edu-header-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; min-height: 62px; display: flex; align-items: center; gap: 12px; }
+.edu-wordmark { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; color: var(--ink); }
+.edu-tag {
+  font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; white-space: nowrap; color: var(--teal-ink); background: var(--teal-soft);
+  padding: 4px 9px; border-radius: var(--r-pill);
+}
+.edu-header .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* header-controls (Task 9): Start/Pause/Stop + the "Gen g/10" progress bar, moved
+   from the old center-column controls-bar into the header's right side. */
+.header-controls { margin-left: auto; }
+.header-controls-inner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* header-photo-actions: Restart + New photo, grouped apart from Start/Pause/Stop
+   with a thin separator when the run controls are also showing (hidden on the
+   done screen, where this group renders alone - no orphan border then). */
+.header-photo-actions { display: flex; align-items: center; gap: 10px; }
+.header-controls-inner.has-run-controls .header-photo-actions {
+  margin-right: 4px; padding-right: 14px; border-right: 1px solid var(--line-2);
+}
+
+.edu-btn {
+  font-family: var(--font-display); font-weight: 600; font-size: 14px;
+  background: var(--marigold); color: var(--on-primary); border: none;
+  border-radius: var(--r-pill); padding: 9px 18px; cursor: pointer;
+  transition: background-color 0.15s, transform 0.12s cubic-bezier(0.32, 0.72, 0.32, 1);
+}
+.edu-btn:hover:not(:disabled) { background: var(--marigold-600); }
+.edu-btn:active:not(:disabled) { transform: scale(0.96); }
+.edu-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.edu-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.edu-btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); }
+.edu-btn.ghost:hover:not(:disabled) { background: var(--paper-2); }
+
+#app {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 270px;
+  gap: 18px;
+  align-items: start;
+  max-width: 1420px; /* sized so the 4x3 grid's bottom lands level with the settings (AI) panel's bottom */
+  margin: 0 auto;
+  padding: 18px 24px 12px;
+  min-height: calc(100vh - 62px);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px;
+}
+/* phase transitions as short fades (Task 7): every App.set() rebuilds the center
+   column from scratch, so a freshly-created .col-center fades in on every state/phase
+   change – Start, judging -> reviewing, a generation advancing, reaching done, etc. */
+.col-center { animation: panel-fade-in 0.2s ease-out; }
+@keyframes panel-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.panel h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.col-left { display: flex; flex-direction: column; gap: 14px; }
+
+.dropzone {
+  border: 2px dashed var(--line-2);
+  border-radius: var(--r-md);
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.dropzone:hover, .dropzone.drag-over { border-color: var(--teal); background: var(--teal-soft); }
+.dropzone:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.dropzone input[type="file"] { display: none; }
+.dropzone-error { color: var(--marigold-ink); font-size: 0.8rem; margin-top: 8px; }
+
+.photo-preview { margin-top: 12px; }
+.photo-preview img { display: block; width: 100%; height: auto; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--paper-2); }
+
+.settings-panel { transition: border-color 0.2s, box-shadow 0.2s; }
+.settings-panel.is-highlighted { border-color: var(--marigold); box-shadow: var(--focus-ring); }
+.settings-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.settings-row label { font-size: 0.76rem; color: var(--ink-2); font-weight: 600; }
+.settings-row select, .settings-row input {
+  font-family: var(--font-ui); font-size: 0.85rem; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line-2); border-radius: var(--r-sm);
+  padding: 7px 9px;
+}
+.settings-row select:focus-visible, .settings-row input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.settings-note { color: var(--ink-3); font-size: 0.76rem; line-height: 1.5; margin: 8px 0 0; }
+.settings-error { color: var(--marigold-ink); font-size: 0.8rem; margin: 8px 0 0; }
+/* Task 13: key-shape guard warning (non-blocking, under the key field) and the
+   paste-time auto-heal status note – distinct tone from settings-error since
+   neither blocks Start on its own. */
+.settings-key-warning { color: var(--marigold-ink); font-size: 0.76rem; margin: 6px 0 0; }
+.settings-key-note { color: var(--teal-ink); font-size: 0.76rem; margin: 6px 0 0; }
+
+/* model discovery + "Get a key" link (Task 9) */
+.settings-key-link {
+  align-self: flex-start; font-size: 0.76rem; color: var(--teal-ink);
+  text-decoration: none; margin-top: 2px;
+}
+.settings-key-link:hover { text-decoration: underline; }
+.settings-key-link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* sr-only: visually hidden but still reachable by assistive tech (the standard
+   clip-based technique) – used for the #live-announcer aria-live region so its text
+   is announced without taking up any visible layout space. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.judging-indicator {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--marigold); margin-right: 6px; vertical-align: middle;
+  animation: judging-pulse 1s ease-in-out infinite;
+}
+@keyframes judging-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+.col-center { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* run status (Task 9): moved out of the old .controls-bar into its own line above
+   the review bar, in the center column, next to the grid it describes. */
+.review-status { font-family: var(--font-mono); font-size: 0.78rem; color: var(--teal-ink); }
+
+/* progress bar: "generation g / 10", visible only while a run is under way. The
+   track (.progress-bar-track) is a fixed-width background bar; .progress-bar-fill
+   is the inner element whose width is set inline from app.js as a percentage. */
+.progress-bar {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  width: 150px; max-width: 40vw;
+}
+.progress-bar-fill {
+  height: 6px; width: 0; border-radius: var(--r-pill);
+  background: var(--marigold); transition: width 0.3s ease;
+}
+.progress-bar-fill-track {
+  flex: 1 1 auto; height: 6px; border-radius: var(--r-pill);
+  background: var(--paper-3); overflow: hidden;
+}
+.progress-bar-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-2); white-space: nowrap; }
+
+/* review countdown bar (Task 7): thin bar draining over REVIEW_MS; width transitions
+   are driven from app.js (renderReviewBar), disabled globally under reduced motion. */
+.review-bar {
+  height: 3px; width: 100%; border-radius: var(--r-pill);
+  background: var(--paper-3); overflow: hidden;
+}
+.review-bar-fill {
+  height: 100%; width: 100%; background: var(--teal);
+  transition-property: width; transition-timing-function: linear;
+}
+
+/* 4 across x 3 down = the 12-cell panel (1 keep-as-is anchor + 8 element variants +
+   3 wild cards). Two columns on narrow screens, as before. */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.cell {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  animation: cell-fade-in 0.25s ease-out;
+}
+.cell:hover { border-color: var(--teal); }
+.cell:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.cell canvas { display: block; width: 100%; height: auto; background: var(--canvas); border-radius: 4px; }
+.cell .cell-badge {
+  position: absolute; top: 10px; left: 10px;
+  background: var(--surface); color: var(--ink-2);
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600;
+  border-radius: var(--r-pill); padding: 1px 7px; border: 1px solid var(--line-2);
+}
+/* wild-card marker: a small spark opposite the number badge. Shown in the DOM only –
+   buildGridJpeg never draws it, so the judge cannot tell a wild card from a variant. */
+.cell .cell-wild {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--teal-soft); color: var(--teal-ink);
+  font-size: 0.72rem; line-height: 1; font-weight: 700;
+  border-radius: var(--r-pill); padding: 3px 6px; border: 1px solid var(--teal);
+}
+.cell.is-wild { border-style: dashed; }
+.cell.is-wild:hover { border-color: var(--teal); }
+
+/* winner highlight (Task 7): an opacity fade, not a shape/position change – a new
+   .is-winner cell is a freshly-rendered DOM node each time (render() rebuilds the
+   whole grid), so this animation naturally replays on every new pick or override. */
+.cell.is-winner { border-color: var(--marigold); animation: cell-winner-fade 0.5s ease-out; }
+.cell.is-winner .cell-badge { background: var(--marigold-soft); color: var(--marigold-ink); border-color: var(--marigold); }
+@keyframes cell-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cell-winner-fade { 0% { opacity: 0.35; } 100% { opacity: 1; } }
+
+.col-right { display: flex; flex-direction: column; gap: 14px; }
+#log { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto; }
+#log:empty::before { content: "No generations run yet."; color: var(--ink-3); font-size: 0.82rem; }
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  border-left: 3px solid var(--line-2);
+  padding: 4px 8px;
+  color: var(--ink-2);
+}
+.log-entry[data-source="manual"] { border-left-color: var(--teal); }
+.log-entry[data-source="ai"] { border-left-color: var(--marigold); }
+
+/* winner thumbnail (Task 9): sits left of the entry text, sized in css px – the
+   backing canvas resolution is device-pixel-ratio scaled from app.js. */
+.log-thumb {
+  flex: 0 0 auto;
+  width: 64px; height: 80px;
+  display: block;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+}
+.log-entry-text { flex: 1 1 auto; min-width: 0; }
+
+/* the done screen shows the finished drawing and nothing else; the side-by-side view
+   is a download only, so .done-composite has no page styling left to carry. */
+.done-panel { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.done-panel h2 { align-self: flex-start; }
+.done-portrait { margin: 0; }
+.done-portrait img {
+  display: block; max-width: 100%; width: min(100%, 460px); height: auto;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--paper-2);
+}
+.done-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.done-actions a.edu-btn { text-decoration: none; display: inline-flex; align-items: center; }
+.done-actions .is-disabled { opacity: 0.45; pointer-events: none; }
+
+.edu-footer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 6px 24px 20px;
+  color: var(--ink-3);
+  font-size: 0.76rem;
+}
+
+#probes { max-width: 1400px; margin: 0 auto; padding: 0 24px 16px; }
+#probes .probe-list { margin-top: 8px; }
+
+@media (max-width: 768px) {
+  .edu-header-inner { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+  .edu-wordmark { font-size: 18px; }
+  .edu-tag { display: none; }
+  .edu-btn { padding: 8px 14px; font-size: 13px; }
+  /* header controls (Task 9): wrap onto their own full-width row instead of
+     overflowing when Start/Pause/Stop + the progress bar no longer fit beside
+     the wordmark. */
+  .header-controls { margin-left: 0; width: 100%; }
+  .header-controls-inner { width: 100%; }
+  .progress-bar { max-width: none; }
+  #app {
+    grid-template-columns: 1fr;
+    padding: 12px 14px 8px;
+  }
+  #grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* prefers-reduced-motion (Task 7): collapse every animation/transition in the app to
+   effectively instant, everywhere, rather than special-casing each one (judging pulse,
+   winner fade, phase fade, the review countdown bar's width transition, the button
+   press scale). This is the standard universal override – it still lets the final
+   state apply (fill widths, opacity, colors all still land), it just removes the
+   motion getting there. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
