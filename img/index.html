@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Anatomy Explorer · edulab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           edulab — Colors & Type foundation (design tokens)
+           ============================================================ */
+        :root {
+            /* ---- Brand fonts ---- */
+            --font-display: 'Bricolage Grotesque', 'Hanken Grotesk', system-ui, sans-serif;
+            --font-sans:    'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+            --font-mono:    'DM Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+            /* Paper — warm cream backgrounds (never pure white) */
+            --paper:    #FBF7F0;
+            --paper-2:  #F4EDDF;
+            --paper-3:  #ECE1CF;
+            --surface:  #FFFFFF;
+
+            /* Ink — warm near-black text & lines */
+            --ink:      #211E1A;
+            --ink-2:    #5B554D;
+            --ink-3:    #938A7C;
+            --line:     #E7DCCB;
+            --line-2:   #D6C8B2;
+
+            /* Marigold — primary brand */
+            --marigold:      #E8920C;
+            --marigold-600:  #CE800A;
+            --marigold-soft: #FBE7C2;
+            --marigold-ink:  #8A4F00;
+
+            /* Teal — secondary brand */
+            --teal:      #0E8C7F;
+            --teal-600:  #0B7468;
+            --teal-soft: #D2EBE6;
+            --teal-ink:  #0A5A52;
+
+            /* Coral — accent (sparingly) */
+            --coral:      #EF5B3F;
+            --coral-600:  #D44A30;
+            --coral-soft: #FBDDD4;
+            --coral-ink:  #9A2E1B;
+
+            /* Sky — supportive */
+            --sky:      #2E78C9;
+            --sky-soft: #D9E7F6;
+            --sky-ink:  #1B4E88;
+
+            /* ---- Radii ---- */
+            --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
+
+            /* ---- Elevation — warm, low, soft ---- */
+            --shadow-sm: 0 1px 2px rgba(33,30,26,.06), 0 1px 1px rgba(33,30,26,.04);
+            --shadow-md: 0 4px 16px rgba(33,30,26,.08), 0 1px 3px rgba(33,30,26,.05);
+            --shadow-lg: 0 16px 40px rgba(33,30,26,.12), 0 3px 8px rgba(33,30,26,.06);
+            --shadow-marigold: 0 8px 22px rgba(232,146,12,.28);
+
+            --focus-ring: 0 0 0 3px rgba(232,146,12,.38);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--paper);
+            color: var(--ink);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Subtle warm background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(rgba(33, 30, 26, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(33, 30, 26, 0.025) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* ============================================================
+           Branded top menu (shared edulab chrome)
+           ============================================================ */
+        .edu-header {
+            position: sticky; top: 0; z-index: 50; width: 100%;
+            background: rgba(251, 247, 240, 0.85);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+        .edu-header-inner {
+            max-width: 1100px; margin: 0 auto;
+            padding: 15px 30px; display: flex; align-items: center; gap: 12px;
+        }
+        .edu-logo { width: 32px; height: 32px; display: block; }
+        .edu-wordmark {
+            font-family: var(--font-display); font-weight: 700; font-size: 22px;
+            letter-spacing: -.02em; color: var(--ink);
+        }
+        .edu-tag {
+            font-family: var(--font-mono); font-weight: 500; font-size: 11px;
+            letter-spacing: .14em; text-transform: uppercase; color: var(--teal-ink);
+            background: var(--teal-soft); padding: 4px 9px; border-radius: var(--r-pill);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 34px 30px 70px;
+        }
+
+        /* ============================================================
+           Page header (eyebrow → solid-ink display title → lead)
+           ============================================================ */
+        header.page-head {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .edu-overline {
+            display: block;
+            font-family: var(--font-mono);
+            font-weight: 500; font-size: 12px;
+            letter-spacing: .14em; text-transform: uppercase;
+            color: var(--marigold-ink);
+            margin-bottom: 0.75rem;
+        }
+
+        h1.app-title {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(2rem, 4.5vw, 2.85rem);
+            line-height: 1.05;
+            letter-spacing: -.025em;
+            color: var(--ink);
+            margin-bottom: 0.75rem;
+        }
+
+        .edu-lead {
+            font-family: var(--font-sans);
+            color: var(--ink-2);
+            font-size: 1.0625rem;
+            line-height: 1.6;
+            max-width: 36rem;
+            margin: 0 auto;
+        }
+
+        .edu-lead span {
+            color: var(--teal-ink);
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           Upload Zone
+           ============================================================ */
+        .upload-zone {
+            border: 2px dashed var(--line-2);
+            border-radius: var(--r-xl);
+            padding: 3rem;
+            text-align: center;
+            background: var(--surface);
+            transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+            cursor: pointer;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--marigold);
+            background: var(--paper-2);
+            box-shadow: var(--shadow-md);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-zone h3 {
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: var(--ink);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-zone p {
+            font-family: var(--font-sans);
+            color: var(--ink-2);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* ============================================================
+           Main Grid Layout
+           ============================================================ */
+        .explorer-grid {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .explorer-grid.active {
+            display: grid;
+        }
+
+        /* ============================================================
+           Cards
+           ============================================================ */
+        .card {
+            background: var(--surface);
+            border-radius: var(--r-lg);
+            border: 1px solid var(--line);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: box-shadow .2s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            padding: 1rem 1.5rem;
+            background: var(--paper-2);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-header .icon {
+            font-size: 1.3rem;
+        }
+
+        .card-header h2 {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-2);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* ============================================================
+           Metadata Section
+           ============================================================ */
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metadata-item {
+            background: var(--paper);
+            padding: 1rem;
+            border-radius: var(--r-sm);
+            border: 1px solid var(--line);
+        }
+
+        .metadata-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--ink-3);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.3rem;
+        }
+
+        .metadata-value {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            color: var(--teal-ink);
+            word-break: break-all;
+        }
+
+        /* ============================================================
+           Binary Data — dark editorial data panel
+           ============================================================ */
+        .binary-container {
+            background: var(--ink);
+            border-radius: var(--r-md);
+            padding: 1rem 1.25rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            line-height: 1.8;
+        }
+
+        .binary-row {
+            display: flex;
+            gap: 1rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(251, 247, 240, 0.08);
+        }
+
+        .binary-offset {
+            color: var(--marigold);
+            min-width: 70px;
+        }
+
+        .binary-hex {
+            color: var(--teal-soft);
+            flex: 1;
+            word-spacing: 4px;
+        }
+
+        .binary-ascii {
+            color: rgba(251, 247, 240, 0.55);
+            min-width: 80px;
+        }
+
+        /* ============================================================
+           Image Preview
+           ============================================================ */
+        .image-preview-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: var(--r-md);
+            padding: 1rem;
+            min-height: 200px;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: var(--r-xs);
+            box-shadow: var(--shadow-md);
+        }
+
+        .size-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: var(--ink);
+            color: var(--paper);
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--r-pill);
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+
+        /* ============================================================
+           Pixel Grid Overlay
+           ============================================================ */
+        .pixel-explorer {
+            position: relative;
+        }
+
+        .pixel-canvas-container {
+            position: relative;
+            background: repeating-conic-gradient(var(--paper-3) 0% 25%, var(--paper-2) 0% 50%) 50% / 20px 20px;
+            border: 1px solid var(--line);
+            border-radius: var(--r-md);
+            padding: 1rem;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        #pixelCanvas {
+            image-rendering: pixelated;
+            cursor: crosshair;
+        }
+
+        .pixel-info {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--r-md);
+            padding: 0.75rem;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            box-shadow: var(--shadow-lg);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .pixel-info.visible {
+            display: block;
+        }
+
+        .pixel-color-box {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--r-xs);
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--line-2);
+        }
+
+        .pixel-coords {
+            color: var(--ink-3);
+            margin-bottom: 0.25rem;
+        }
+
+        .pixel-rgb {
+            color: var(--teal-ink);
+        }
+
+        .pixel-hex {
+            color: var(--marigold-ink);
+        }
+
+        .pixel-binary {
+            color: var(--ink-2);
+            font-size: 0.65rem;
+            margin-top: 0.25rem;
+        }
+
+        /* ============================================================
+           Controls
+           ============================================================ */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-3);
+        }
+
+        .control-group > span {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--ink-2);
+            min-width: 2.5rem;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(33, 30, 26, 0.12);
+            height: 8px;
+            border-radius: var(--r-pill);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--surface);
+            border: 2px solid var(--marigold);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: var(--surface);
+            border: 2px solid var(--marigold);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        input[type="range"]:focus-visible {
+            outline: none;
+            box-shadow: var(--focus-ring);
+        }
+
+        .btn {
+            background: var(--surface);
+            border: 1px solid var(--line-2);
+            color: var(--ink);
+            padding: 0.5rem 1rem;
+            border-radius: var(--r-pill);
+            cursor: pointer;
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background .2s, color .2s, border-color .2s;
+        }
+
+        .btn:hover {
+            background: var(--paper-2);
+            border-color: var(--marigold);
+        }
+
+        .btn.active {
+            background: var(--marigold);
+            color: #fff;
+            border-color: var(--marigold);
+            box-shadow: var(--shadow-marigold);
+        }
+
+        /* Full Width Cards */
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* ============================================================
+           Scrollbar styling
+           ============================================================ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--line-2);
+            border-radius: var(--r-pill);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--marigold);
+        }
+
+        /* ============================================================
+           Legend
+           ============================================================ */
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--line);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-sans);
+            font-size: 0.85rem;
+            color: var(--ink-2);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: var(--r-xs);
+        }
+
+        /* ============================================================
+           Encoding explanation panel
+           ============================================================ */
+        .encoding-explanation {
+            background: var(--teal-soft);
+            padding: 1.1rem 1.25rem;
+            border-radius: var(--r-lg);
+            margin-top: 1rem;
+        }
+
+        .encoding-explanation h4 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            color: var(--teal-ink);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .encoding-explanation p {
+            font-family: var(--font-sans);
+            color: var(--teal-ink);
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        .encoding-explanation code {
+            background: rgba(10, 90, 82, 0.12);
+            padding: 0.1rem 0.4rem;
+            border-radius: var(--r-xs);
+            font-family: var(--font-mono);
+            color: var(--teal-ink);
+        }
+
+        /* ============================================================
+           Responsive
+           ============================================================ */
+        @media (max-width: 900px) {
+            .explorer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1.app-title {
+                font-size: 2rem;
+            }
+
+            .metadata-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================================
+           Animation
+           ============================================================ */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .card:nth-child(4) { animation-delay: 0.3s; }
+        .card:nth-child(5) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <header class="edu-header">
+        <div class="edu-header-inner">
+            <img class="edu-logo" alt="edulab" src="data:image/png;base64,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">
+            <span class="edu-wordmark">edulab</span>
+            <span class="edu-tag">demo lab</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <header class="page-head">
+            <span class="edu-overline">Interactive demo · 4 min</span>
+            <h1 class="app-title">Image Anatomy Explorer</h1>
+            <p class="edu-lead">See what's <span>really</span> inside your images — metadata, raw bytes, and pixel-by-pixel colour.</p>
+        </header>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">📁</div>
+            <h3>Drop an image here</h3>
+            <p>or click to browse (PNG, JPG, GIF, WebP)</p>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="explorer-grid" id="explorerGrid">
+            <!-- Metadata Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📋</span>
+                    <h2>File Metadata</h2>
+                </div>
+                <div class="card-body">
+                    <div class="metadata-grid" id="metadataGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="encoding-explanation">
+                        <h4>💡 What is Metadata?</h4>
+                        <p>Metadata is "data about data" — information stored alongside your image like file name, size, and format. The computer uses this to know how to read the file!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Original vs Resized -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📐</span>
+                    <h2>Size Comparison</h2>
+                </div>
+                <div class="card-body">
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Scale:</label>
+                            <input type="range" id="scaleSlider" min="10" max="100" value="50">
+                            <span id="scaleValue">50%</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <div class="image-preview-container" style="flex: 1;">
+                            <span class="size-badge" id="originalSize">Original</span>
+                            <img id="originalPreview" class="preview-image" alt="Original">
+                        </div>
+                        <div class="image-preview-container" style="flex: 1;">
+                            <span class="size-badge" id="resizedSize">Resized</span>
+                            <img id="resizedPreview" class="preview-image" alt="Resized">
+                        </div>
+                    </div>
+                    <div class="encoding-explanation">
+                        <h4>💡 How Resizing Works</h4>
+                        <p>When you shrink an image, the computer must decide which pixels to keep. This is called <code>downsampling</code>. Making images smaller reduces file size but loses detail!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Binary Data -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <span class="icon">🔢</span>
+                    <h2>Raw Binary Data (First 512 bytes)</h2>
+                </div>
+                <div class="card-body">
+                    <div class="binary-container" id="binaryContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--marigold);"></div>
+                            <span>Offset (position in file)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--teal);"></div>
+                            <span>Hexadecimal bytes</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: var(--ink-3);"></div>
+                            <span>ASCII representation</span>
+                        </div>
+                    </div>
+                    <div class="encoding-explanation">
+                        <h4>💡 What is Binary Data?</h4>
+                        <p>Computers store everything as numbers. Each <code>byte</code> (8 bits) can hold a value from 0-255. Here we show bytes in <code>hexadecimal</code> (base-16) because it's more compact: <code>FF</code> = 255, <code>00</code> = 0. The first bytes often contain the file's "magic number" — a signature that identifies the file type!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pixel Explorer -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <span class="icon">🎨</span>
+                    <h2>Pixel Explorer</h2>
+                </div>
+                <div class="card-body pixel-explorer">
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Resolution:</label>
+                            <input type="range" id="resolutionSlider" min="8" max="64" value="32">
+                            <span id="resolutionValue">32px</span>
+                        </div>
+                        <div class="control-group">
+                            <label>Pixel Size:</label>
+                            <input type="range" id="zoomSlider" min="4" max="32" value="12">
+                            <span id="zoomValue">12px</span>
+                        </div>
+                        <button class="btn" id="toggleGrid">Toggle Grid</button>
+                        <button class="btn" id="toggleValues">Toggle RGB Values</button>
+                    </div>
+                    <p style="font-family: var(--font-sans); color: var(--ink-2); font-size: 0.85rem; margin-bottom: 1rem;">
+                        📊 Downsampled to: <span id="resolutionDisplay" style="color: var(--teal-ink); font-family: var(--font-mono);">--</span>
+                    </p>
+                    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start;">
+                        <div style="flex: 0 0 auto;">
+                            <p style="font-family: var(--font-mono); color: var(--ink-3); font-size: 0.72rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.12em;">Original</p>
+                            <div style="background: var(--paper); border-radius: var(--r-md); padding: 0.5rem; border: 1px solid var(--line);">
+                                <img id="pixelOriginalThumb" style="max-width: 150px; max-height: 150px; border-radius: var(--r-xs); display: block;" alt="Original">
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 300px;">
+                            <p style="font-family: var(--font-mono); color: var(--ink-3); font-size: 0.72rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.12em;">Pixelated View (hover to inspect)</p>
+                            <div class="pixel-canvas-container">
+                                <canvas id="pixelCanvas"></canvas>
+                                <div class="pixel-info" id="pixelInfo">
+                                    <div class="pixel-color-box" id="pixelColorBox"></div>
+                                    <div class="pixel-coords" id="pixelCoords">X: 0, Y: 0</div>
+                                    <div class="pixel-rgb" id="pixelRGB">R: 0 G: 0 B: 0</div>
+                                    <div class="pixel-hex" id="pixelHex">#000000</div>
+                                    <div class="pixel-binary" id="pixelBinary">Binary: 00000000 00000000 00000000</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="encoding-explanation">
+                        <h4>💡 How Pixels Store Color</h4>
+                        <p>Each pixel uses 3 numbers (0-255) for <code style="color: var(--coral-ink);">Red</code>, <code style="color: var(--teal-ink);">Green</code>, and <code style="color: var(--sky-ink);">Blue</code>. Mixing these creates all colors! <code>R:255 G:0 B:0</code> = pure red. <code>R:255 G:255 B:255</code> = white. That's 256 × 256 × 256 = <strong>16.7 million</strong> possible colors!</p>
+                        <p style="margin-top: 0.5rem;">🔍 <strong>What you see above:</strong> The entire image downsampled to a tiny grid. Lower resolution = fewer pixels = you can see each one! This is exactly how computer vision models "see" images.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let originalImage = null;
+        let imageData = null;
+        let showGrid = true;
+        let showValues = false;
+        let zoomLevel = 12;
+        let fileBytes = null;
+
+        // DOM Elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const explorerGrid = document.getElementById('explorerGrid');
+        const metadataGrid = document.getElementById('metadataGrid');
+        const binaryContainer = document.getElementById('binaryContainer');
+        const originalPreview = document.getElementById('originalPreview');
+        const resizedPreview = document.getElementById('resizedPreview');
+        const pixelCanvas = document.getElementById('pixelCanvas');
+        const pixelInfo = document.getElementById('pixelInfo');
+        const scaleSlider = document.getElementById('scaleSlider');
+        const zoomSlider = document.getElementById('zoomSlider');
+
+        // Upload handling
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                processImage(file);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) processImage(file);
+        });
+
+        // Process uploaded image
+        function processImage(file) {
+            // Read as ArrayBuffer for binary display
+            const binaryReader = new FileReader();
+            binaryReader.onload = (e) => {
+                fileBytes = new Uint8Array(e.target.result);
+                displayBinaryData();
+            };
+            binaryReader.readAsArrayBuffer(file);
+
+            // Read as Data URL for image display
+            const imageReader = new FileReader();
+            imageReader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImage = img;
+                    displayMetadata(file, img);
+                    displayPreviews(img);
+                    displayPixelExplorer(img);
+                    explorerGrid.classList.add('active');
+                    uploadZone.style.display = 'none';
+                };
+                img.src = e.target.result;
+            };
+            imageReader.readAsDataURL(file);
+        }
+
+        // Display file metadata
+        function displayMetadata(file, img) {
+            const metadata = [
+                { label: 'File Name', value: file.name },
+                { label: 'File Type', value: file.type },
+                { label: 'File Size', value: formatBytes(file.size) },
+                { label: 'Dimensions', value: `${img.width} × ${img.height} px` },
+                { label: 'Total Pixels', value: (img.width * img.height).toLocaleString() },
+                { label: 'Color Depth', value: '24-bit (8 bits × 3 channels)' },
+                { label: 'Raw Data Size', value: formatBytes(img.width * img.height * 3) },
+                { label: 'Compression', value: file.size < (img.width * img.height * 3) ?
+                    `${((1 - file.size / (img.width * img.height * 3)) * 100).toFixed(1)}% smaller` : 'None' }
+            ];
+
+            metadataGrid.innerHTML = metadata.map(m => `
+                <div class="metadata-item">
+                    <div class="metadata-label">${m.label}</div>
+                    <div class="metadata-value">${m.value}</div>
+                </div>
+            `).join('');
+        }
+
+        // Format bytes to human readable
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        // Display binary data
+        function displayBinaryData() {
+            const rows = [];
+            const bytesToShow = Math.min(512, fileBytes.length);
+
+            for (let i = 0; i < bytesToShow; i += 16) {
+                const offset = i.toString(16).padStart(8, '0').toUpperCase();
+                const hexBytes = [];
+                const asciiChars = [];
+
+                for (let j = 0; j < 16 && i + j < bytesToShow; j++) {
+                    const byte = fileBytes[i + j];
+                    hexBytes.push(byte.toString(16).padStart(2, '0').toUpperCase());
+                    asciiChars.push(byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.');
+                }
+
+                rows.push(`
+                    <div class="binary-row">
+                        <span class="binary-offset">${offset}</span>
+                        <span class="binary-hex">${hexBytes.join(' ')}</span>
+                        <span class="binary-ascii">${asciiChars.join('')}</span>
+                    </div>
+                `);
+            }
+
+            binaryContainer.innerHTML = rows.join('');
+        }
+
+        // Display image previews
+        function displayPreviews(img) {
+            originalPreview.src = img.src;
+            document.getElementById('originalSize').textContent = `${img.width} × ${img.height}`;
+            updateResizedPreview();
+        }
+
+        function updateResizedPreview() {
+            const scale = scaleSlider.value / 100;
+            const newWidth = Math.floor(originalImage.width * scale);
+            const newHeight = Math.floor(originalImage.height * scale);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(originalImage, 0, 0, newWidth, newHeight);
+
+            resizedPreview.src = canvas.toDataURL();
+            document.getElementById('resizedSize').textContent = `${newWidth} × ${newHeight}`;
+            document.getElementById('scaleValue').textContent = `${scaleSlider.value}%`;
+        }
+
+        scaleSlider.addEventListener('input', updateResizedPreview);
+
+        // Pixel Explorer
+        let pixelResolution = 32; // Default resolution for pixel grid
+
+        function displayPixelExplorer(img) {
+            // Set the thumbnail
+            document.getElementById('pixelOriginalThumb').src = img.src;
+            updatePixelCanvas();
+        }
+
+        function updatePixelCanvas() {
+            if (!originalImage) return;
+
+            const ctx = pixelCanvas.getContext('2d');
+
+            // Calculate dimensions maintaining aspect ratio
+            const aspectRatio = originalImage.width / originalImage.height;
+            let pixelWidth, pixelHeight;
+
+            if (aspectRatio >= 1) {
+                // Landscape or square
+                pixelWidth = pixelResolution;
+                pixelHeight = Math.max(1, Math.round(pixelResolution / aspectRatio));
+            } else {
+                // Portrait
+                pixelHeight = pixelResolution;
+                pixelWidth = Math.max(1, Math.round(pixelResolution * aspectRatio));
+            }
+
+            // Downsample the ENTIRE image to low resolution
+            const sourceCanvas = document.createElement('canvas');
+            sourceCanvas.width = pixelWidth;
+            sourceCanvas.height = pixelHeight;
+            const sourceCtx = sourceCanvas.getContext('2d');
+
+            // Draw entire image scaled down
+            sourceCtx.drawImage(originalImage, 0, 0, pixelWidth, pixelHeight);
+            imageData = sourceCtx.getImageData(0, 0, pixelWidth, pixelHeight);
+
+            // Store dimensions for hover calculations
+            pixelCanvas.dataset.pixelWidth = pixelWidth;
+            pixelCanvas.dataset.pixelHeight = pixelHeight;
+
+            // Draw zoomed pixels
+            const canvasWidth = pixelWidth * zoomLevel;
+            const canvasHeight = pixelHeight * zoomLevel;
+            pixelCanvas.width = canvasWidth;
+            pixelCanvas.height = canvasHeight;
+
+            ctx.imageSmoothingEnabled = false;
+
+            for (let y = 0; y < pixelHeight; y++) {
+                for (let x = 0; x < pixelWidth; x++) {
+                    const i = (y * pixelWidth + x) * 4;
+                    const r = imageData.data[i];
+                    const g = imageData.data[i + 1];
+                    const b = imageData.data[i + 2];
+
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.fillRect(x * zoomLevel, y * zoomLevel, zoomLevel, zoomLevel);
+
+                    // Draw grid (warm ink hairline)
+                    if (showGrid && zoomLevel >= 6) {
+                        ctx.strokeStyle = 'rgba(33, 30, 26, 0.18)';
+                        ctx.strokeRect(x * zoomLevel, y * zoomLevel, zoomLevel, zoomLevel);
+                    }
+
+                    // Draw RGB values
+                    if (showValues && zoomLevel >= 18) {
+                        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                        ctx.fillStyle = brightness > 128 ? '#211E1A' : '#FBF7F0';
+                        ctx.font = `bold ${Math.floor(zoomLevel / 4.5)}px 'DM Mono', monospace`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`${r}`, x * zoomLevel + zoomLevel/2, y * zoomLevel + zoomLevel/3 + 2);
+                        ctx.fillText(`${g}`, x * zoomLevel + zoomLevel/2, y * zoomLevel + zoomLevel/2 + 2);
+                        ctx.fillText(`${b}`, x * zoomLevel + zoomLevel/2, y * zoomLevel + zoomLevel * 0.75 + 2);
+                    }
+                }
+            }
+
+            // Update resolution display
+            const resDisplay = document.getElementById('resolutionDisplay');
+            if (resDisplay) {
+                resDisplay.textContent = `${pixelWidth} × ${pixelHeight} pixels (${(pixelWidth * pixelHeight).toLocaleString()} total)`;
+            }
+        }
+
+        // Zoom slider
+        zoomSlider.addEventListener('input', () => {
+            zoomLevel = parseInt(zoomSlider.value);
+            document.getElementById('zoomValue').textContent = `${zoomLevel}px`;
+            updatePixelCanvas();
+        });
+
+        // Resolution slider
+        document.getElementById('resolutionSlider').addEventListener('input', (e) => {
+            pixelResolution = parseInt(e.target.value);
+            document.getElementById('resolutionValue').textContent = `${pixelResolution}px`;
+            updatePixelCanvas();
+        });
+
+        // Toggle buttons
+        document.getElementById('toggleGrid').addEventListener('click', (e) => {
+            showGrid = !showGrid;
+            e.target.classList.toggle('active');
+            updatePixelCanvas();
+        });
+
+        document.getElementById('toggleValues').addEventListener('click', (e) => {
+            showValues = !showValues;
+            e.target.classList.toggle('active');
+            updatePixelCanvas();
+        });
+
+        // Pixel info on hover
+        pixelCanvas.addEventListener('mousemove', (e) => {
+            if (!imageData) return;
+
+            const rect = pixelCanvas.getBoundingClientRect();
+            const pixelWidth = parseInt(pixelCanvas.dataset.pixelWidth) || pixelResolution;
+            const pixelHeight = parseInt(pixelCanvas.dataset.pixelHeight) || pixelResolution;
+
+            const x = Math.floor((e.clientX - rect.left) / zoomLevel);
+            const y = Math.floor((e.clientY - rect.top) / zoomLevel);
+
+            if (x < 0 || y < 0 || x >= pixelWidth || y >= pixelHeight) {
+                pixelInfo.classList.remove('visible');
+                return;
+            }
+
+            const i = (y * pixelWidth + x) * 4;
+            const r = imageData.data[i];
+            const g = imageData.data[i + 1];
+            const b = imageData.data[i + 2];
+
+            const hex = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+
+            document.getElementById('pixelColorBox').style.background = hex;
+            document.getElementById('pixelCoords').textContent = `X: ${x}, Y: ${y}`;
+            document.getElementById('pixelRGB').textContent = `R: ${r} G: ${g} B: ${b}`;
+            document.getElementById('pixelHex').textContent = hex;
+            document.getElementById('pixelBinary').textContent =
+                `Binary: ${r.toString(2).padStart(8, '0')} ${g.toString(2).padStart(8, '0')} ${b.toString(2).padStart(8, '0')}`;
+
+            // Position tooltip, keeping it within viewport
+            let tooltipX = e.clientX - rect.left + 20;
+            let tooltipY = e.clientY - rect.top + 20;
+
+            // Adjust if tooltip would go off the right edge
+            if (tooltipX + 150 > rect.width) {
+                tooltipX = e.clientX - rect.left - 170;
+            }
+
+            pixelInfo.style.left = tooltipX + 'px';
+            pixelInfo.style.top = tooltipY + 'px';
+            pixelInfo.classList.add('visible');
+        });
+
+        pixelCanvas.addEventListener('mouseleave', () => {
+            pixelInfo.classList.remove('visible');
+        });
+
+        // Initial toggle state
+        document.getElementById('toggleGrid').classList.add('active');
+    </script>
+</body>
+</html>
