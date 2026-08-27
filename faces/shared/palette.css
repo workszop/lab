@@ -25,6 +25,12 @@
     --fur-7: #f1ebdc; --fur-8: #e6b0a8; --fur-9: #8fa56a; --fur-10: #c4633a; --fur-11: #d9b05a;
     --pink: #e4a5a0;
 
+  /* ── creatures ── */
+    /* the creatures' marker box: pale accents, a fern and a sea tint for the myths, fire and blood */
+    --crt-1: #cfa73f; --crt-2: #7d98ab; --crt-3: #b06550; --crt-4: #8fa56a;
+    --crt-5: #8c6f8e; --crt-6: #5f8f8a;
+    --crt-fern: #7a9a5a; --crt-sea: #6fa39d; --crt-fire: #d0782f; --crt-blood: #a8352d;
+
   /* ── tattoo ── */
     /* the flash palette: red, yellow, green, blue, orange, grey, brown, skin-pink */
     --tat-red: #b5332f; --tat-yellow: #d9b53a; --tat-green: #3f7a58; --tat-blue: #35598a;

@@ -144,6 +144,7 @@ var App = {
     state: 'idle',        // idle | ready | running | done
     phase: null,           // null | drawing | judging | reviewing | paused
     provider: initialSettings.provider,   // 'gemini' | 'openai' | 'claude'
+    manualMode: false,     // true while the current run was started with Manual: AI judge off, the user picks every cell
     models: initialSettings.models,       // { gemini, openai, claude } model name text
     keys: initialSettings.keys,           // { gemini, openai, claude } API key text – never logged
     discovered: providerMap(function () { return []; }), // Task 9: extra model IDs discovered per provider (non-curated only), runtime-only
@@ -156,6 +157,20 @@ var App = {
     settingsError: null,                  // message shown in the settings panel
     settingsKeyNote: initialHealNote,     // Task 13: info note shown after a paste- or load-time auto-heal moved a key
     runError: null,                       // judge-failure message shown while phase === 'paused'
+    /* Pause works at ANY moment of a run, so the app has to remember what it interrupted
+       and hold on to anything the judge says while nobody is watching:
+       pausedFrom  – the phase Pause interrupted ('judging' | 'drawing' | null). null
+                     means "resume into reviewing", which covers both a pause during
+                     reviewing and the judge-failure pause that waits for a manual pick.
+       pendingJudge – a judge outcome that arrived WHILE paused, parked instead of
+                     applied so the app stays visibly paused. Shape:
+                       { kind: 'result',  best, hints, epoch }
+                       { kind: 'failure', attempt, message, epoch }
+                       { kind: 'retry',   attempt, epoch }
+                     Resume applies it; a stale epoch drops it. Never a reason to
+                     re-issue a request – pausing never cancels or refires one. */
+    pausedFrom: null,
+    pendingJudge: null,
     generation: 0,          // element mode: the 1-based STEP number (the data-generation contract keeps its name)
     population: null,      // array of PANEL_SIZE genomes, current step's panel
     populationMeta: null,  // aligned 'anchor' | 'variant' | 'wild' per cell (from Genome.elementVariants)
@@ -832,10 +847,66 @@ function clearJudgeRetryTimer() {
    Start builds step 1's variants, and again by advanceStep() after building each
    following step's variants. */
 function beginJudging() {
+  /* A manual run: no judge at all. The panel goes straight to phase 'reviewing' with no
+     winner, which is already a fully-supported state (it is where a judge failure
+     lands): the status line asks for a pick, onCellPick sets a manual winner and starts
+     the review countdown, Enter/timeout advance as usual. judgeEpoch is still bumped so
+     any straggling reply from an earlier AI run is dropped. */
+  if (App.state.manualMode) {
+    judgeEpoch++;
+    if (App.state.phase === 'paused') {
+      App.set({ pausedFrom: null, pendingJudge: null });   // Resume lands in reviewing
+      return;
+    }
+    App.set({ phase: 'reviewing', runError: null, pendingJudge: null, pausedFrom: null });
+    return;
+  }
+  /* Pause can in principle land in phase 'drawing'. In practice it cannot: advanceStep
+     and Start both build the panel and call this in the same synchronous tick, so there
+     is no moment for a click in between. The guard is here anyway, and costs nothing –
+     if the app somehow is already paused, no request goes out at all and Resume starts
+     judging then (see resumeRun's 'drawing' branch). */
+  if (App.state.phase === 'paused') {
+    App.set({ pausedFrom: 'drawing', pendingJudge: null });
+    return;
+  }
   judgeEpoch++;
   var epoch = judgeEpoch;
-  App.set({ phase: 'judging', runError: null });
+  App.set({ phase: 'judging', runError: null, pendingJudge: null, pausedFrom: null });
   runJudge(0, epoch);
+}
+
+/* judgeReplyIsWanted(epoch) – is a settling judge promise (or retry) still relevant?
+   The epoch check is the real one: Stop, Restart, New photo and every step advance bump
+   judgeEpoch, and anything from an older epoch belongs to a run that has moved on and is
+   dropped. The phase check that used to sit alongside it can no longer be "must be
+   'judging'": Pause may have moved the app to 'paused' with the same request still in
+   flight, and that reply is still wanted – it is parked and applied on Resume. Any other
+   phase means something already resolved this step, so the reply has nothing to do. */
+function judgeReplyIsWanted(epoch) {
+  if (epoch !== judgeEpoch) return false;
+  var phase = App.state.phase;
+  return phase === 'judging' || phase === 'paused';
+}
+
+/* applyJudgeResult(best, hints) – the AI's pick becomes the winner and the review
+   countdown starts. Shared by the live path and by Resume applying a parked result. A
+   manual pick made WHILE paused wins over the parked AI pick: the user has already
+   answered the question the judge was asked, so only the hints are taken (matching the
+   existing "a manual override keeps the AI's hints" rule). */
+function applyJudgeResult(best, hints) {
+  var s = App.state;
+  var manual = !!s.winner && s.winnerSource === 'manual';
+  startReviewTimer();
+  App.set({
+    winner: manual ? s.winner : best,
+    winnerSource: manual ? 'manual' : 'ai',
+    winnerHints: hints,
+    phase: 'reviewing',
+    pausedFrom: null,
+    pendingJudge: null,
+    runError: null,
+  });
 }
 
 /* runJudge(attempt, epoch) – calls the configured provider's adapter, sanitizes the
@@ -866,22 +937,22 @@ function runJudge(attempt, epoch) {
   }
 
   judge(provider, model, key, photoJpeg, gridJpeg, prompt).then(function (text) {
-    if (epoch !== judgeEpoch || App.state.phase !== 'judging') return; // stale – a newer run/generation moved on
+    if (!judgeReplyIsWanted(epoch)) return;  // stale – a newer run/step moved on
     var parsed = window.Genome.sanitizeJudgeReply(text, PANEL_SIZE);
     if (!parsed) {
       handleJudgeFailure(attempt, epoch, 'The judge reply could not be understood.');
       return;
     }
-    startReviewTimer();
-    App.set({
-      winner: parsed.best,
-      winnerSource: 'ai',
-      winnerHints: parsed.hints,
-      phase: 'reviewing',
-      runError: null,
-    });
+    /* Paused while this request was in flight: park the pick rather than dropping it
+       (the API call was already paid for) and rather than applying it (the user asked
+       for the app to stand still). Resume hands it to applyJudgeResult. */
+    if (App.state.phase === 'paused') {
+      App.set({ pendingJudge: { kind: 'result', best: parsed.best, hints: parsed.hints, epoch: epoch } });
+      return;
+    }
+    applyJudgeResult(parsed.best, parsed.hints);
   }).catch(function (err) {
-    if (epoch !== judgeEpoch || App.state.phase !== 'judging') return; // stale – a newer run/generation moved on
+    if (!judgeReplyIsWanted(epoch)) return;  // stale – a newer run/step moved on
     handleJudgeFailure(attempt, epoch, (err && err.message) ? err.message : 'The judge request failed.');
   });
 }
@@ -892,15 +963,31 @@ function runJudge(attempt, epoch) {
    epoch === judgeEpoch before acting, so a retry whose run was stopped/restarted in
    the meantime is a silent no-op. */
 function handleJudgeFailure(attempt, epoch, message) {
+  if (epoch !== judgeEpoch) return; // stale – the run this attempt belonged to has already moved on
+
+  /* Paused: park the failure and let Resume run this exact path again. Nothing is
+     retried behind the user's back while the app is meant to be standing still. */
+  if (App.state.phase === 'paused') {
+    App.set({ pendingJudge: { kind: 'failure', attempt: attempt, message: message, epoch: epoch } });
+    return;
+  }
+
   if (attempt === 0) {
     judgeRetryTimerId = window.setTimeout(function () {
       judgeRetryTimerId = null;
-      if (epoch === judgeEpoch && App.state.phase === 'judging') runJudge(1, epoch);
+      if (epoch !== judgeEpoch) return;
+      /* Pause landed inside the retry delay: park the retry instead of firing it, and
+         instead of silently doing nothing – which would strand the run on a spinner
+         with no request in flight and nothing pending. */
+      if (App.state.phase === 'paused') {
+        App.set({ pendingJudge: { kind: 'retry', attempt: 1, epoch: epoch } });
+        return;
+      }
+      if (App.state.phase === 'judging') runJudge(1, epoch);
     }, JUDGE_RETRY_MS);
     return;
   }
-  if (epoch !== judgeEpoch) return; // stale – the run this retry belonged to has already moved on
-  App.set({ phase: 'paused', runError: message + ' Pick manually to continue.' });
+  App.set({ phase: 'paused', pausedFrom: null, runError: message + ' Pick manually to continue.' });
 }
 
 /* buildPortraitCanvas(genome, transparent) -> canvas rendered at 2x cell resolution.
@@ -985,6 +1072,8 @@ function finishRun(winnerIndex, entry, extraEntries) {
     portraitTransparentDataUrl: portraitTransparentDataUrl,
     compositeDataUrl: null,
     runError: null,
+    pausedFrom: null,
+    pendingJudge: null,   // Stop mid-pause: a parked reply belongs to a run that just ended
     log: s.log.concat([entry]).concat(extraEntries || []),
   });
 
@@ -1044,6 +1133,8 @@ function advanceStep() {
     winnerSource: null,
     winnerHints: [],
     phase: 'drawing',
+    pausedFrom: null,
+    pendingJudge: null,
     log: s.log.concat([entry]).concat(skipped),
   });
   beginJudging();
@@ -1073,6 +1164,7 @@ function render() {
   appEl.setAttribute('data-state', s.state);
   appEl.setAttribute('data-phase', s.phase || '');
   appEl.setAttribute('data-provider', s.provider);
+  appEl.setAttribute('data-manual', s.manualMode ? 'true' : 'false');
 
   clearEl(appEl);
   appEl.appendChild(renderLeftColumn(s));
@@ -1178,16 +1270,33 @@ function renderHeaderControls(s) {
     startBtn.disabled = s.state !== 'ready';
     startBtn.addEventListener('click', onStartClick);
 
+    /* enabled for the whole run, judging included – see onPauseResumeClick */
     var pauseLabel = s.phase === 'paused' ? 'Resume' : 'Pause';
-    var pauseBtn = el('button', { class: 'edu-btn ghost', type: 'button', text: pauseLabel });
-    pauseBtn.disabled = s.state !== 'running' || (s.phase !== 'reviewing' && s.phase !== 'paused');
+    var pauseBtn = el('button', {
+      class: 'edu-btn ghost', type: 'button', text: pauseLabel,
+      'aria-label': s.phase === 'paused' ? 'Resume the run' : 'Pause the run',
+    });
+    pauseBtn.disabled = s.state !== 'running';
     pauseBtn.addEventListener('click', onPauseResumeClick);
 
     var stopBtn = el('button', { class: 'edu-btn ghost', type: 'button', text: 'Stop' });
     stopBtn.disabled = s.state !== 'running';
     stopBtn.addEventListener('click', onStopClick);
 
+    /* Manual: a second start button – same gate as Start, but the run it starts has
+       the AI judge off and the user picks every cell. Highlighted (not clickable)
+       while a manual run is under way, so the mode stays visible. */
+    var manualActive = s.manualMode && s.state !== 'ready';
+    var manualBtn = el('button', {
+      class: 'edu-btn ghost manual-toggle' + (manualActive ? ' is-on' : ''), type: 'button', text: 'Manual',
+      'aria-label': 'Start a manual run - AI judge off, you pick every sketch',
+      title: 'Start a run without the AI judge and pick every sketch yourself. No API key needed.',
+    });
+    manualBtn.disabled = s.state !== 'ready';
+    manualBtn.addEventListener('click', onManualStartClick);
+
     wrap.appendChild(startBtn);
+    wrap.appendChild(manualBtn);
     wrap.appendChild(pauseBtn);
     wrap.appendChild(stopBtn);
 
@@ -1234,6 +1343,20 @@ function renderHeaderPhotoActions(s) {
    countdown bar stays with the grid") since both describe the current phase of
    the run that's on screen right below. Returns null when there's nothing to say
    (not currently running). */
+/* pausedStatusText(s) – says WHAT is paused, since Pause now interrupts more than the
+   review countdown. A judge failure's own message still wins: it is the most useful
+   thing to show and it already tells the user what to do. */
+function pausedStatusText(s) {
+  if (s.runError) return s.runError;
+  if (s.pendingJudge && s.pendingJudge.kind === 'result') {
+    return 'Paused - the judge has picked; press Resume to see it';
+  }
+  if (s.pendingJudge) return 'Paused - the judge replied; press Resume to continue';
+  if (s.pausedFrom === 'judging') return 'Paused during judging - press Resume';
+  if (s.pausedFrom === 'drawing') return 'Paused before judging - press Resume';
+  return s.winner ? 'Paused - press Resume to continue' : 'Paused - pick a candidate, then Resume';
+}
+
 function renderRunStatus(s) {
   if (s.state !== 'running') return null;
   var status = el('div', { class: 'review-status' });
@@ -1241,12 +1364,13 @@ function renderRunStatus(s) {
     status.appendChild(el('span', { class: 'judging-indicator', 'aria-hidden': 'true' }));
     status.appendChild(document.createTextNode('Judge is looking at the grid…'));
   } else if (s.phase === 'paused') {
-    status.textContent = s.runError ? s.runError : (s.winner ? 'Paused – press Resume to continue' : 'Paused – pick a candidate, then Resume');
+    status.textContent = pausedStatusText(s);
   } else if (s.winner) {
     status.textContent = 'Winner picked' + (s.winnerSource === 'ai' ? ' by the judge' : '') +
       ' – advancing soon (press Enter now)';
   } else {
-    status.textContent = 'Pick a candidate: click a cell, or press 1-9 / 0 / - / =';
+    status.textContent = (s.manualMode ? 'Manual - pick the best match for the photo' : 'Pick a candidate') +
+      ': click a cell, or press 1-9 / 0 / - / =';
   }
   return status;
 }
@@ -1318,6 +1442,13 @@ function renderSettingsPanel(s) {
     class: 'panel settings-panel' + (s.settingsHighlight ? ' is-highlighted' : ''),
   });
   panel.appendChild(el('h2', { text: 'Settings' }));
+
+  if (s.manualMode && s.state === 'running') {
+    panel.appendChild(el('p', {
+      class: 'settings-note settings-manual-note',
+      text: 'This is a manual run - the AI judge is off, and the provider, model and API key below are not used.',
+    }));
+  }
 
   var catalogProvider = window.AI_MODEL_CATALOG.providers[s.provider];
 
@@ -1470,7 +1601,13 @@ function renderCenterColumn(s) {
       grid.appendChild(renderCell(s, i));
     }
   } else {
-    grid.appendChild(el('p', { text: 'Upload a photo and press Start to build the first element\u2019s candidates.' }));
+    /* the empty-grid message tracks the actual state: telling a user who has already
+       uploaded to "upload a photo" made the next step (Start/Manual) easy to miss */
+    grid.appendChild(el('p', {
+      text: s.state === 'ready'
+        ? 'Photo loaded - press Start for an AI-judged run, or Manual to pick every sketch yourself.'
+        : 'Upload a photo, then press Start or Manual to draw the first candidates.',
+    }));
   }
   gridPanel.appendChild(grid);
   col.appendChild(gridPanel);
@@ -1484,16 +1621,20 @@ function renderCell(s, i) {
   var hash = window.Genome.genomeHash(genome);
   var isWinner = s.winner === index;
   var isWild = isWildCell(s, index);
+  /* once a winner stands, the panel is locked (see onCellPick): the other cells stop
+     being buttons – no hover affordance, no tab stop – until the next panel renders */
+  var isLocked = !!s.winner && !isWinner;
   var label = 'Candidate ' + index + (isWild ? ', wild card' : '') +
     (isWinner ? ', selected' + (s.winnerSource === 'ai' ? ' by AI' : ' by you') : '');
   var cell = el('div', {
-    class: 'cell' + (isWinner ? ' is-winner' : '') + (isWild ? ' is-wild' : ''),
+    class: 'cell' + (isWinner ? ' is-winner' : '') + (isWild ? ' is-wild' : '') + (isLocked ? ' is-locked' : ''),
     'data-index': String(index),
     'data-genome-hash': hash,
     'data-wild': isWild ? 'true' : 'false',
-    tabindex: '0',
+    tabindex: isLocked ? '-1' : '0',
     role: 'button',
     'aria-label': label,
+    'aria-disabled': isLocked ? 'true' : 'false',
   });
   var canvas = document.createElement('canvas');
   canvas.width = CELL_W; canvas.height = CELL_H;
@@ -1648,13 +1789,20 @@ function handlePhotoFile(file) {
    press with that exact same (provider, key) pair already warned about, in which
    case it proceeds: patterns are heuristics, not proof, and the user gets the
    final say once they've seen the warning. */
-function onStartClick() {
+function onStartClick() { startRun(false); }
+
+/* the Manual button: starts a run exactly like Start, but with the AI judge off – the
+   user picks every cell themselves. No provider, model or key is needed or checked. */
+function onManualStartClick() { startRun(true); }
+
+function startRun(manual) {
   if (App.state.state !== 'ready') return;
   var s = App.state;
   var provider = s.provider;
   var key = s.keys[provider];
 
-  if (key) {
+  /* a manual run needs no provider at all: skip the key heal/warning and the key gate */
+  if (key && !manual) {
     var ownPattern = window.AI_MODEL_CATALOG.providers[provider].keyPattern;
     if (ownPattern && !ownPattern.test(key)) {
       var likely = window.AI_MODEL_CATALOG.keyLooksLike(key);
@@ -1696,10 +1844,10 @@ function onStartClick() {
     }
   }
 
-  if (!hasKey(provider)) {
+  if (!manual && !hasKey(provider)) {
     App.set({
       settingsHighlight: true,
-      settingsError: 'Add an API key for ' + PROVIDER_LABELS[provider] + ' to start a run.',
+      settingsError: 'Add an API key for ' + PROVIDER_LABELS[provider] + ' to start a run, or press Manual to pick every sketch yourself.',
     });
     return;
   }
@@ -1711,6 +1859,7 @@ function onStartClick() {
   }));
   var firstPanel = window.Genome.elementVariants(working, stepAt(1), Math.random);
   App.set({
+    manualMode: manual,
     state: 'running',
     phase: 'drawing',
     generation: 1,
@@ -1721,6 +1870,8 @@ function onStartClick() {
     winnerSource: null,
     winnerHints: [],
     runError: null,
+    pausedFrom: null,
+    pendingJudge: null,
     settingsHighlight: false,
     settingsError: null,
     settingsKeyNote: null,
@@ -1728,21 +1879,93 @@ function onStartClick() {
   beginJudging();
 }
 
+/* onPauseResumeClick() – Pause works at any moment of a run, not only while a winner is
+   on screen: judging counts as "something is happening" too, and being unable to stop it
+   is the whole complaint this addresses. Pausing NEVER cancels or re-issues a request
+   and never bumps judgeEpoch – only Stop, Restart, New photo and a step advance do that,
+   exactly as before – so no API call is ever wasted by pausing. */
 function onPauseResumeClick() {
   var s = App.state;
   if (s.state !== 'running') return;
-  if (s.phase === 'paused') {
-    var resumeMs = reviewRemainingMs;
-    reviewRemainingMs = null;
-    if (s.winner) startReviewTimer(resumeMs === null ? undefined : resumeMs);
-    App.set({ phase: 'reviewing', runError: null });
-  } else if (s.phase === 'reviewing') {
+  if (s.phase === 'paused') resumeRun();
+  else pauseRun();
+}
+
+/* pauseRun() – freeze whatever is going on, remembering what it was so Resume can put it
+   back. Only the review countdown needs actual freezing (its remaining time is stashed);
+   a judge request in flight is simply left alone to land into pendingJudge. */
+function pauseRun() {
+  var s = App.state;
+  if (s.phase === 'reviewing') {
     if (s.winner && reviewTimerId !== null) {
       reviewRemainingMs = Math.max(0, reviewDeadline - Date.now());
       clearReviewTimer();
     }
-    App.set({ phase: 'paused' });
+    App.set({ phase: 'paused', pausedFrom: null });   // null resumes into reviewing
+    return;
   }
+  if (s.phase === 'judging') {
+    App.set({ phase: 'paused', pausedFrom: 'judging' });
+    return;
+  }
+  if (s.phase === 'drawing') {
+    App.set({ phase: 'paused', pausedFrom: 'drawing' });
+  }
+}
+
+/* resumeRun() – four ways back:
+   - a parked judge outcome (result, failure or due retry): apply it now, exactly as the
+     live path would have. A parked outcome from a superseded run (stale epoch) is
+     dropped and the run falls back to the phase it was paused from;
+   - paused during judging with nothing parked: the request is still out there, so put
+     the spinner back and let the callback land normally;
+   - paused during drawing: no request ever went out, so start judging now;
+   - anything else (paused during reviewing, or the judge-failure pause waiting for a
+     manual pick): back to reviewing, restarting the countdown with whatever Pause left
+     on it. */
+function resumeRun() {
+  var s = App.state;
+  var pending = s.pendingJudge;
+  var from = s.pausedFrom;
+
+  if (pending) {
+    App.set({ pendingJudge: null, pausedFrom: null });
+    if (pending.epoch === judgeEpoch) {
+      if (pending.kind === 'result') {
+        applyJudgeResult(pending.best, pending.hints);   // sets phase 'reviewing' itself
+        return;
+      }
+      /* both of these have to leave 'paused' BEFORE they run: handleJudgeFailure parks
+         whatever it is given while the app is paused, so calling it from a still-paused
+         state would just re-park the same failure forever. */
+      if (pending.kind === 'retry') {
+        App.set({ phase: 'judging', runError: null });
+        runJudge(pending.attempt, pending.epoch);
+        return;
+      }
+      if (pending.kind === 'failure') {
+        App.set({ phase: 'judging', runError: null });
+        handleJudgeFailure(pending.attempt, pending.epoch, pending.message);
+        return;
+      }
+    }
+    // stale parked outcome: fall through and resume the phase we were paused from
+  }
+
+  if (from === 'judging') {
+    App.set({ phase: 'judging', pausedFrom: null, runError: null });
+    return;
+  }
+  if (from === 'drawing') {
+    App.set({ pausedFrom: null, runError: null });
+    beginJudging();
+    return;
+  }
+
+  var resumeMs = reviewRemainingMs;
+  reviewRemainingMs = null;
+  if (s.winner) startReviewTimer(resumeMs === null ? undefined : resumeMs);
+  App.set({ phase: 'reviewing', pausedFrom: null, runError: null });
 }
 
 function onStopClick() {
@@ -1798,15 +2021,19 @@ function triggerPortraitDownload() {
 
 function onCellPick(index) {
   var s = App.state;
-  // pickable while actively reviewing an AI/manual pick, and while paused (spec §6:
-  // a judge failure pauses the run and waits for exactly this manual pick + Resume)
+  // pickable while a panel is waiting for its selection: phase 'reviewing' with no
+  // winner (a manual run, or after a judge failure's manual-continue), and 'paused'
+  // (spec §6: a judge failure pauses the run and waits for exactly this pick + Resume)
   if (s.state !== 'running' || (s.phase !== 'reviewing' && s.phase !== 'paused')) return;
   if (!s.population || index < 1 || index > s.population.length) return;
-  // overriding a pick keeps whatever hints the AI already produced this generation –
-  // only the winner + its source change, winnerHints is left untouched. A pick made
-  // while paused (spec §6 manual-continue) also clears the judge-failure message,
-  // since the user has now done exactly what it asked for.
-  if (s.phase === 'reviewing') startReviewTimer(); // (re)start the full REVIEW_MS window on every pick, including overrides
+  /* one selection per panel: once a winner stands (AI or manual), every further pick is
+     ignored until the next step's panel appears – no overrides, no countdown restarts.
+     This guard covers clicks, the per-cell Enter/Space and the global 1-9/0/-/= keys,
+     which all route through here. */
+  if (s.winner) return;
+  if (s.phase === 'reviewing') startReviewTimer();
+  // a pick made while paused (spec §6 manual-continue) also clears the judge-failure
+  // message, since the user has now done exactly what it asked for
   App.set({
     winner: index,
     winnerSource: 'manual',
@@ -1816,7 +2043,9 @@ function onCellPick(index) {
 
 function onStartOverClick() {
   // same photo, fresh step 1: reuse the photo already in state, drop everything else,
-  // then run the exact Start path so step 1 starts from NEUTRAL_BASE with a new wobbleSeed
+  // then run the exact Start path so step 1 starts from NEUTRAL_BASE with a new wobbleSeed.
+  // A manual run restarts as a manual run, an AI run as an AI run.
+  var manual = App.state.manualMode;
   clearReviewTimer();
   clearJudgeRetryTimer();
   judgeEpoch++; // invalidate any judge Promise still in flight
@@ -1824,9 +2053,10 @@ function onStartOverClick() {
   App.set({
     state: 'ready', phase: null, population: null, populationMeta: null, generation: 0,
     winner: null, winnerSource: null, winnerHints: [], workingGenome: null, runError: null, log: [], error: null,
+    pausedFrom: null, pendingJudge: null,
     doneGenome: null, portraitDataUrl: null, portraitTransparentDataUrl: null, compositeDataUrl: null,
   });
-  onStartClick();
+  startRun(manual);
 }
 
 function onNewPhotoClick() {
@@ -1837,6 +2067,7 @@ function onNewPhotoClick() {
   App.set({
     state: 'idle', phase: null, population: null, populationMeta: null, generation: 0,
     winner: null, winnerSource: null, winnerHints: [], workingGenome: null, runError: null, log: [], error: null, photo: null,
+    pausedFrom: null, pendingJudge: null,
     doneGenome: null, portraitDataUrl: null, portraitTransparentDataUrl: null, compositeDataUrl: null,
   });
 }

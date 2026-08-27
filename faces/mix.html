@@ -22,7 +22,7 @@
   </div>
 </div></header>
 <main>
-<div class="sheet" id="sheet" aria-label="Mixed sheet: faces, figures, critters, tattoo flash and space, shuffled together"><canvas id="c" aria-hidden="true"></canvas></div>
+<div class="sheet" id="sheet" aria-label="Mixed sheet: faces, figures, critters, tattoo flash, space and creatures, shuffled together"><canvas id="c" aria-hidden="true"></canvas></div>
 
 <div class="bar">
   <button id="save" class="edu-btn ghost" title="save the whole sheet (s)">Save sheet PNG</button>
@@ -36,13 +36,14 @@
 <script src="animals.js"></script>
 <script src="tattoo.js"></script>
 <script src="space.js"></script>
+<script src="creatures.js"></script>
 <script>
 /* ============================================================
    MIX – one cell from any collection. The collections register
    themselves (Sheet.register in faces.js … space.js); this sheet
    only rolls which hand draws each cell and passes the pen.
    ============================================================ */
-const MIX_WEIGHTS = { faces: 1, figures: 0.2, animals: 1, tattoo: 1, space: 1 };   // figures kept rare
+const MIX_WEIGHTS = { faces: 1, figures: 0.2, animals: 1, tattoo: 1, space: 1, creatures: 1 };   // figures kept rare
 const MIX = Object.keys(MIX_WEIGHTS);
 /* each collection gets its own salt, so the cell that picked it doesn't share its random stream —
    without this, the collection choice and the drawing's first roll would use the same number,

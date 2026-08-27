@@ -1,15 +1,15 @@
 # Sketchbook
 
 Procedural sketch sheets drawn by code with a wobbly, tapered pen and a marker box:
-48 faces, 48 figures, 48 critters, 48 tattoo-flash designs, 48 space objects — or a mixed sheet
-of all of them. No build step;
+48 faces, 48 figures, 48 critters, 48 tattoo-flash designs, 48 space objects, 48 odd little
+creatures (beings, disfigured humans, myths and horrors) — or a mixed sheet of all of them. No build step;
 open `index.html` (or any sheet) straight from disk.
 
 | file | what |
 |---|---|
-| `index.html` | the index: a tile per sheet, each with a little preview really drawn by that collection's hand (keys `1`–`6` open a sheet, `r` redraws the previews); the edulab logo on any sheet leads back |
-| `faces.html`, `figures.html`, `animals.html`, `tattoo.html`, `space.html` | one thin shell each: it loads its collection's JS and calls `Sheet.init(COLLECTIONS.<name>)` |
-| `faces.js`, `figures.js`, `animals.js`, `tattoo.js`, `space.js` | the collections: each sheet's drawing code in an IIFE that calls `Sheet.register(name, cfg)` |
+| `index.html` | the index: a tile per sheet, each with a little preview really drawn by that collection's hand (keys `1`–`7` open a sheet, `r` redraws the previews); the edulab logo on any sheet leads back |
+| `faces.html`, `figures.html`, `animals.html`, `tattoo.html`, `space.html`, `creatures.html` | one thin shell each: it loads its collection's JS and calls `Sheet.init(COLLECTIONS.<name>)` |
+| `faces.js`, `figures.js`, `animals.js`, `tattoo.js`, `space.js`, `creatures.js` | the collections: each sheet's drawing code in an IIFE that calls `Sheet.register(name, cfg)` |
 | `mix.html` | loads every collection and rolls, per cell, which hand draws it (seed salted per collection) |
 | `shared/pen.js` | the pen: seeded RNG, `sketch`/`line`/`arc`/`blobPts`/`washPts`/`stipple`/`hatch`/`dot`, and the `pen` state object (`ctx`, `R`, `ink`, `base`, multipliers) |
 | `shared/sheet.js` | the paper: canvas, grid of seeded cells, grain, redraw / save, the enlarge-one-drawing viewer, deep links, DOM contract |

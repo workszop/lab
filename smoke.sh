@@ -77,7 +77,7 @@ page "drawme/index.html?debug=1" 12000 "DrawMe probes" \
   '+id="probes"[^>]*data-pass="true"' '-data-pass="false"'
 page "faces/index.html?seed=1" 15000 "Sketchbook hub tiles ready" \
   '+id="tiles"[^>]*data-state="ready"'
-for sheet in faces figures animals tattoo space mix; do
+for sheet in faces figures animals tattoo space creatures mix; do
   page "faces/$sheet.html?seed=1&probe=1&smoke=$SMOKE" 20000 \
     "Sketchbook $sheet: ready, hashed, $SMOKE smoke seeds clean" \
     '+id="sheet"[^>]*data-state="ready"' \
