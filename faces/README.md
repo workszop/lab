@@ -16,7 +16,7 @@ open `index.html` (or any sheet) straight from disk.
 | `shared/chrome.css` | the reset, the branded top bar and the `.edu-btn` button, shared by the hub and the sheets |
 | `shared/palette.css` | the whole drawing palette: the shared marker box plus every collection's own tokens (cloth, fur, flash, space) — one source of truth, so the mix can draw anything |
 | `shared/sheet.css` | sheet chrome, the keyboard cell grid and viewer styles |
-| `verify.sh` | headless Chrome check of the DOM contract; prints pixel hashes to prove a change is lossless |
+| `../smoke.sh` | repo-root headless Chrome check of the DOM contract (all sheets ready, pixel hash present, `?smoke=N` seeds error-free); `?probe=1`'s pixel hash proves a change is lossless |
 
 ## Using a sheet
 
@@ -60,11 +60,11 @@ Everything the drawing code shares lives in one object, `pen`: `pen.ctx` (the ca
 multipliers `w`, `wob`, `minTaper`, `scribble`, `stipple`; `pen.reset()` runs before every drawing.
 Big drawings are written as a setup block that fills a context object `F`, followed by named parts
 (`faceEyes(F)`, `figLegs(F)`, …) called in order – the order of random draws is the drawing's identity,
-so parts are moved, never reordered, and `./verify.sh`'s pixel hash proves a refactor changed nothing.
+so parts are moved, never reordered, and `?probe=1`'s pixel hash (checked by `../smoke.sh`) proves a refactor changed nothing.
 
 ## DOM contract
 
 `#sheet[data-state]` (`drawing` | `ready`), `#sheet[data-seed]`, `#sheet[data-census]` (JSON counts),
 `#sheet[data-hash]` (pixel hash, only with `?probe=1`), `#sheet[data-smoke]` (with `?smoke=N`: N extra seeds
 drawn in-page, capped at 200, `{ seeds, errors }`), `#big[data-index|data-seed|data-label]` for the enlarged drawing,
-`#sheet[data-controls]` (the pen settings in force), on the index: `#tiles[data-state|data-seed]` and each `.tile[data-collection|data-seed|data-state]`. `./verify.sh` reads exactly these (`SMOKE=40` seeds per sheet by default).
+`#sheet[data-controls]` (the pen settings in force), on the index: `#tiles[data-state|data-seed]` and each `.tile[data-collection|data-seed|data-state]`. `../smoke.sh` reads exactly these (`SMOKE=20` seeds per sheet by default). While a pen slider is being dragged the sheet renders a low-resolution preview and stays `data-state="drawing"`; only the settled full-resolution draw publishes `ready` and the contract.

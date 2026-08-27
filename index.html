@@ -271,7 +271,9 @@ footer {
   </div>
 </footer>
 
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/lucide@1.34.0/dist/umd/lucide.min.js"
+        integrity="sha384-TkyaYJPudUfB9a60ZTQjPXXxBGDxeXJy48PDE1DeZnOdKs/QdAs3pP/B9ApNJIH8"
+        crossorigin="anonymous"></script>
 <script>
 // ─── Constants ───
 const CHIP_CLASS = { tool: 'chip-tool', webapp: 'chip-webapp', edu: 'chip-edu', play: 'chip-play' };
@@ -304,8 +306,19 @@ const appCountEl = document.getElementById('appCount');
 const featuredEl = document.getElementById('featured');
 
 // ─── Helpers ───
-function chipHtml(kind) {
-  return `<span class="edu-chip ${CHIP_CLASS[kind]}">${CHIP_LABEL[kind]}</span>`;
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+function chipEl(kind) {
+  return el('span', `edu-chip ${CHIP_CLASS[kind]}`, CHIP_LABEL[kind]);
+}
+function iconEl(className, name) {
+  const i = el('i', className);
+  i.setAttribute('data-lucide', name);
+  return i;
 }
 
 // ─── Render ───
@@ -324,19 +337,23 @@ function renderFeatured() {
 }
 
 function renderGrid() {
-  gridEl.innerHTML = MODEL.apps.map(app => `
-    <a class="card" role="listitem" href="${app.href}" aria-label="Open ${app.title}">
-      <div class="card-head" style="background:${app.color}">
-        ${chipHtml(app.kind)}
-        <i class="icon" data-lucide="${app.icon}"></i>
-        <i class="ghost" data-lucide="${app.icon}"></i>
-      </div>
-      <div class="card-body">
-        <h3>${app.title}</h3>
-        <p>${app.desc}</p>
-        <span class="edu-meta">${app.meta}</span>
-      </div>
-    </a>`).join('');
+  gridEl.textContent = '';
+  for (const app of MODEL.apps) {
+    const card = el('a', 'card');
+    card.setAttribute('role', 'listitem');
+    card.href = app.href;
+    card.setAttribute('aria-label', `Open ${app.title}`);
+
+    const head = el('div', 'card-head');
+    head.style.background = app.color;
+    head.append(chipEl(app.kind), iconEl('icon', app.icon), iconEl('ghost', app.icon));
+
+    const body = el('div', 'card-body');
+    body.append(el('h3', '', app.title), el('p', '', app.desc), el('span', 'edu-meta', app.meta));
+
+    card.append(head, body);
+    gridEl.appendChild(card);
+  }
   appCountEl.textContent = `${MODEL.apps.length + 1} apps`;
 }
 
@@ -344,7 +361,8 @@ function renderGrid() {
 document.getElementById('favicon').href = document.querySelector('.edu-logo').src;
 renderFeatured();
 renderGrid();
-lucide.createIcons();
+/* the CDN may be blocked or down: cards read fine without their decorative icons */
+if (window.lucide) lucide.createIcons();
 </script>
 </body>
 </html>

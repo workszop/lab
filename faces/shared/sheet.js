@@ -28,6 +28,8 @@ const MAX_DPR = 2;
 /* the paper is always rasterised at MAX_DPR, whatever the screen: a sheet saved on a laptop
    and the same seed saved on a phone are the same file, pixel for pixel */
 const SCALE = MAX_DPR * RASTER;
+const PREVIEW_SCALE = RASTER;          // dragged-slider raster: ¼ of the pixel work, same geometry
+const SETTLE_MS = 180;                 // full-resolution redraw this long after the last slider event
 const CELL_SEED = (master, row, col) => (master + row * 101 + col * 977) >>> 0;
 const DRAW_SALT = 0xBEEF;
 const VIEWER_PX = 1200;                // the enlarged drawing's canvas
@@ -50,6 +52,8 @@ const SHEET = {
   name: 'sheet', draw: null, census: [], jitter: [14, 14], zoom: 1,
   masterSeed: 0, cells: [], current: -1,
   pendingDraw: 0,          // a redraw is scheduled for the next frame
+  pendingPreview: 0,       // a low-resolution preview frame is scheduled
+  previewTimer: 0,         // the timer that turns a drag's last preview into a full draw
   focusBefore: null,       // where focus was when the viewer opened
   inert: [],               // what the viewer put behind itself
 };
@@ -124,20 +128,22 @@ function renderControls() {
   ).join('')}<button type="button" class="edu-btn ghost" id="resetControls" title="back to the sheet's own hand">reset</button></form></div>`);
   const form = document.getElementById('controls');
   document.getElementById('toggleControls').addEventListener('click', toggleControls);
-  const apply = () => { saveControls(); requestDraw(); };
   form.addEventListener('input', e => {
     const c = CONTROLS.find(x => x.id === e.target.name); if (!c) return;
     pen.user[c.id] = c.options ? e.target.value : Number(e.target.value);
     const out = e.target.nextElementSibling; if (out && out.tagName === 'OUTPUT') out.textContent = Number(e.target.value).toFixed(2);
-    apply();
+    saveControls();
+    requestPreview();
   });
+  form.addEventListener('change', drawNow);   // the slider was released: settle without waiting out the timer
   document.getElementById('resetControls').addEventListener('click', () => {
     for (const c of CONTROLS) {
       pen.user[c.id] = c.def;
       const el = form.elements[c.id]; el.value = c.def;
       const out = el.nextElementSibling; if (out && out.tagName === 'OUTPUT') out.textContent = Number(c.def).toFixed(2);
     }
-    apply();
+    saveControls();
+    drawNow();
   });
 }
 const describe = who => Object.values(who || {}).filter(v => typeof v === 'string').join(' · ');
@@ -152,14 +158,16 @@ function paperBase() {
 }
 
 /* ─── Render ─── */
-/* draw the whole sheet, now, synchronously; requestDraw() is the everyday entry, this the core */
-function drawAll() {
+/* draw the whole sheet, now, synchronously; requestDraw() is the everyday entry, this the core.
+   preview: a dragged slider's cheap frame — lower raster, no labels, no DOM contract, the
+   sheet stays 'drawing' until the settled full-resolution draw lands */
+function drawAll(scale = SCALE, preview = false) {
   SHEET.pendingDraw = 0;
   sheet.dataset.state = 'drawing';
-  canvas.width = W * SCALE;
-  canvas.height = H * SCALE;
+  canvas.width = W * scale;
+  canvas.height = H * scale;
   pen.ctx = sheetCtx;
-  pen.ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  pen.ctx.setTransform(scale, 0, 0, scale, 0, 0);
   paperBase();
 
   const census = {};
@@ -180,6 +188,7 @@ function drawAll() {
       SHEET.cells.push({ row, col, seed: seed ^ DRAW_SALT, who });
     }
   }
+  if (preview) return;   // the settled draw redoes the labels and the contract below
   labelCells();
   /* DOM contract: the sheet publishes what it drew */
   sheet.dataset.seed = SHEET.masterSeed;
@@ -196,11 +205,37 @@ function requestDraw() {
   sheet.dataset.state = 'drawing';
   if (SHEET.pendingDraw) return;
   SHEET.pendingDraw = 1;
-  afterPaint(drawAll);
+  afterPaint(() => drawAll());
 }
-/* FNV-1a over the pixels: lets a script prove two builds draw the same sheet */
+/* while a slider drags: a cheap preview frame per animation frame, then one full-resolution
+   draw once the hand rests (or the slider is released, via the form's change event) */
+function requestPreview() {
+  sheet.dataset.state = 'drawing';
+  if (!SHEET.pendingPreview) {
+    SHEET.pendingPreview = 1;
+    requestAnimationFrame(() => {
+      SHEET.pendingPreview = 0;
+      if (SHEET.previewTimer) drawAll(PREVIEW_SCALE, true);   // skipped if the settled draw already took over
+    });
+  }
+  clearTimeout(SHEET.previewTimer);
+  SHEET.previewTimer = setTimeout(drawNow, SETTLE_MS);
+}
+/* the full-resolution draw, now: cancels a pending settle so it cannot land twice */
+function drawNow() {
+  clearTimeout(SHEET.previewTimer);
+  SHEET.previewTimer = 0;
+  requestDraw();
+}
+/* FNV-1a over the pixels: lets a script prove two builds draw the same sheet. Read from a
+   throwaway copy made with willReadFrequently — one getImageData on the sheet canvas itself
+   would push it to software raster for every later draw */
 function pixelHash() {
-  const d = pen.ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const copy = document.createElement('canvas');
+  copy.width = canvas.width; copy.height = canvas.height;
+  const rctx = copy.getContext('2d', { willReadFrequently: true });
+  rctx.drawImage(canvas, 0, 0);
+  const d = rctx.getImageData(0, 0, copy.width, copy.height).data;
   let h = 0x811c9dc5;
   for (let i = 0; i < d.length; i++) { h ^= d[i]; h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16);

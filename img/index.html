@@ -212,6 +212,19 @@
             display: none;
         }
 
+        .upload-status {
+            margin: 0.75rem 0 0;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--ink-2);
+            min-height: 1.2em;
+        }
+
+        .upload-status.error {
+            color: var(--coral-ink);
+        }
+
         /* ============================================================
            Main Grid Layout
            ============================================================ */
@@ -672,6 +685,7 @@
             <p>or click to browse (PNG, JPG, GIF, WebP)</p>
             <input type="file" id="fileInput" accept="image/*">
         </div>
+        <p class="upload-status" id="uploadStatus" role="status" aria-live="polite"></p>
 
         <div class="explorer-grid" id="explorerGrid">
             <!-- Metadata Card -->
@@ -843,40 +857,71 @@
             e.preventDefault();
             uploadZone.classList.remove('dragover');
             const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                processImage(file);
-            }
+            if (file) processImage(file);
         });
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) processImage(file);
         });
 
+        // Upload limits — reject before decoding, so a huge file can't hang or crash the tab
+        const MAX_FILE_BYTES = 30 * 1024 * 1024;
+        const MAX_PIXELS = 32 * 1000 * 1000;
+        const BINARY_PREVIEW_BYTES = 512;
+        let currentObjectUrl = null;
+        const uploadStatus = document.getElementById('uploadStatus');
+
+        function showStatus(text, isError) {
+            uploadStatus.textContent = text;
+            uploadStatus.classList.toggle('error', !!isError);
+        }
+        function failUpload(text, url) {
+            showStatus(text, true);
+            fileInput.value = '';       // the same file can be picked again after a fix
+            if (url) URL.revokeObjectURL(url);
+        }
+
         // Process uploaded image
         function processImage(file) {
-            // Read as ArrayBuffer for binary display
-            const binaryReader = new FileReader();
-            binaryReader.onload = (e) => {
-                fileBytes = new Uint8Array(e.target.result);
-                displayBinaryData();
-            };
-            binaryReader.readAsArrayBuffer(file);
+            if (!file.type.startsWith('image/')) {
+                failUpload(`"${file.name}" is not an image (type: ${file.type || 'unknown'}). Try PNG, JPG, GIF, or WebP.`);
+                return;
+            }
+            if (file.size > MAX_FILE_BYTES) {
+                failUpload(`File is ${formatBytes(file.size)} — the explorer handles up to ${formatBytes(MAX_FILE_BYTES)}.`);
+                return;
+            }
+            showStatus(`Loading ${file.name}…`, false);
 
-            // Read as Data URL for image display
-            const imageReader = new FileReader();
-            imageReader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    originalImage = img;
-                    displayMetadata(file, img);
-                    displayPreviews(img);
-                    displayPixelExplorer(img);
-                    explorerGrid.classList.add('active');
-                    uploadZone.style.display = 'none';
-                };
-                img.src = e.target.result;
+            // The hex view only ever shows the first bytes — no need to read the whole file
+            file.slice(0, BINARY_PREVIEW_BYTES).arrayBuffer()
+                .then(buf => {
+                    fileBytes = new Uint8Array(buf);
+                    displayBinaryData();
+                })
+                .catch(() => failUpload('Could not read the file. It may have been moved or deleted.'));
+
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                if (img.width * img.height > MAX_PIXELS) {
+                    failUpload(`Image is ${img.width} × ${img.height} px (${(img.width * img.height / 1e6).toFixed(1)} MP) — the explorer handles up to ${MAX_PIXELS / 1e6} MP.`, url);
+                    return;
+                }
+                if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+                currentObjectUrl = url;
+                originalImage = img;
+                displayMetadata(file, img);
+                displayPreviews(img);
+                displayPixelExplorer(img);
+                explorerGrid.classList.add('active');
+                uploadZone.style.display = 'none';
+                showStatus('', false);
             };
-            imageReader.readAsDataURL(file);
+            img.onerror = () => {
+                failUpload(`Could not decode "${file.name}" — the file is corrupt or not a supported image format.`, url);
+            };
+            img.src = url;
         }
 
         // Display file metadata
@@ -893,12 +938,19 @@
                     `${((1 - file.size / (img.width * img.height * 3)) * 100).toFixed(1)}% smaller` : 'None' }
             ];
 
-            metadataGrid.innerHTML = metadata.map(m => `
-                <div class="metadata-item">
-                    <div class="metadata-label">${m.label}</div>
-                    <div class="metadata-value">${m.value}</div>
-                </div>
-            `).join('');
+            metadataGrid.textContent = '';
+            for (const m of metadata) {
+                const item = document.createElement('div');
+                item.className = 'metadata-item';
+                const label = document.createElement('div');
+                label.className = 'metadata-label';
+                label.textContent = m.label;
+                const value = document.createElement('div');
+                value.className = 'metadata-value';
+                value.textContent = m.value;
+                item.append(label, value);
+                metadataGrid.appendChild(item);
+            }
         }
 
         // Format bytes to human readable
@@ -908,10 +960,10 @@
             return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
         }
 
-        // Display binary data
+        // Display binary data — built with textContent: the ASCII column is raw file bytes
         function displayBinaryData() {
-            const rows = [];
-            const bytesToShow = Math.min(512, fileBytes.length);
+            binaryContainer.textContent = '';
+            const bytesToShow = Math.min(BINARY_PREVIEW_BYTES, fileBytes.length);
 
             for (let i = 0; i < bytesToShow; i += 16) {
                 const offset = i.toString(16).padStart(8, '0').toUpperCase();
@@ -924,16 +976,16 @@
                     asciiChars.push(byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.');
                 }
 
-                rows.push(`
-                    <div class="binary-row">
-                        <span class="binary-offset">${offset}</span>
-                        <span class="binary-hex">${hexBytes.join(' ')}</span>
-                        <span class="binary-ascii">${asciiChars.join('')}</span>
-                    </div>
-                `);
+                const row = document.createElement('div');
+                row.className = 'binary-row';
+                for (const [cls, text] of [['binary-offset', offset], ['binary-hex', hexBytes.join(' ')], ['binary-ascii', asciiChars.join('')]]) {
+                    const span = document.createElement('span');
+                    span.className = cls;
+                    span.textContent = text;
+                    row.appendChild(span);
+                }
+                binaryContainer.appendChild(row);
             }
-
-            binaryContainer.innerHTML = rows.join('');
         }
 
         // Display image previews
@@ -993,7 +1045,7 @@
             const sourceCanvas = document.createElement('canvas');
             sourceCanvas.width = pixelWidth;
             sourceCanvas.height = pixelHeight;
-            const sourceCtx = sourceCanvas.getContext('2d');
+            const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
 
             // Draw entire image scaled down
             sourceCtx.drawImage(originalImage, 0, 0, pixelWidth, pixelHeight);
