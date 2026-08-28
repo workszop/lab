@@ -1,0 +1,13 @@
+{
+  "name": "lab",
+  "private": true,
+  "description": "edulab app lab — static site; npm is used only for dev tooling (icon generation)",
+  "scripts": {
+    "icons": "node scripts/generate-icons.js",
+    "test": "node --test doc2slide/pure.test.mjs",
+    "smoke": "./smoke.sh"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.2"
+  }
+}
