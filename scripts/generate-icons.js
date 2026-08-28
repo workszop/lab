@@ -19,9 +19,17 @@ const BACKGROUND = '#ffffff';          // manifest background_color
 const MASKABLE_SCALE = 0.6;            // logo size inside the maskable safe zone
 
 // ─── Helpers ───
+/* the source canvas carries large transparent margins around the mark;
+   trim them once so every output is sized against the mark itself */
+let TRIMMED;
+async function trimmedSource() {
+  if (!TRIMMED) TRIMMED = await sharp(SOURCE).trim().png().toBuffer();
+  return TRIMMED;
+}
+
 /* the logo resized to `logoPx`, centered on an opaque `canvasPx` square of BACKGROUND */
 async function onCanvas(canvasPx, logoPx) {
-  const logo = await sharp(SOURCE)
+  const logo = await sharp(await trimmedSource())
     .resize(logoPx, logoPx, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
@@ -62,9 +70,9 @@ function pngToIco(pngs) {
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
 
-  // transparent square icons at the two manifest sizes
+  // transparent square icons at the two manifest sizes, mark filling the frame
   for (const size of [192, 512]) {
-    await sharp(SOURCE)
+    await sharp(await trimmedSource())
       .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(path.join(OUT, `icon-${size}.png`));
@@ -78,7 +86,7 @@ async function main() {
   await (await onCanvas(180, 150)).toFile(path.join(OUT, 'apple-touch-icon.png'));
 
   // favicons: a 32px PNG at root, and an ICO wrapping 16 + 32 px PNGs
-  const fav = async px => sharp(SOURCE)
+  const fav = async px => sharp(await trimmedSource())
     .resize(px, px, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
