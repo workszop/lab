@@ -6,6 +6,7 @@
 #
 # What it checks:
 #   - doc2slide's pure helpers pass their node unit tests
+#   - the Image Anatomy Explorer loads its bundled sample (?sample=1)
 #   - every HTML page loads to </html> with no uncaught browser exception
 #   - each Sketchbook sheet reaches #sheet[data-state="ready"], publishes a pixel
 #     hash (?probe=1) and survives ?smoke=N extra seeds with zero errors
@@ -73,6 +74,8 @@ page "index.html"           8000  "landing page"
 page "doc2slide/index.html" 8000  "doc2slide"
 page "story/index.html"     8000  "Am I in a Story?"
 page "img/index.html"       8000  "Image Anatomy Explorer"
+page "img/index.html?sample=1" 10000 "Image Anatomy Explorer: bundled sample loads" \
+  '+id="loadSample"[^>]*data-state="ready"' '+class="explorer-grid active"' '-upload-status error'
 page "drawme/index.html?debug=1" 12000 "DrawMe probes" \
   '+id="probes"[^>]*data-pass="true"' '-data-pass="false"'
 page "faces/index.html?seed=1" 15000 "Sketchbook hub tiles ready" \
