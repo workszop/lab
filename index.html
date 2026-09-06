@@ -351,8 +351,8 @@ footer {
 const LANG_KEY = 'lab.lang';
 const T = {
   pl: {
-    title: 'Małe narzędzia, zrobione do używania',
-    lead: 'Mała półka samodzielnych aplikacji webowych: generator prezentacji, rysowanie generatywne, klocki do nauki AI, karty do rozmów i jeden przesadnie dramatyczny quiz. Wszystko działa w przeglądarce, bez budowania.',
+    title: 'Małe narzędzia, które robią swoje',
+    lead: 'Kilka niezależnych aplikacji na jednej półce: generator prezentacji, szkicownik rysowany kodem, klocki do nauki AI, karty do rozmów i jeden mocno przerysowany quiz. Każda otwiera się w przeglądarce, niczego nie trzeba instalować.',
     featured: 'Polecane',
     open: 'Otwórz aplikację',
     allApps: 'Wszystkie aplikacje',
@@ -384,22 +384,22 @@ const MODEL = {
   featured: {
     title: 'doc2slide',
     desc: {
-      pl: 'Zamienia dokumenty Markdown, tekst lub PDF w edytowalne prezentacje w przeglądarce. Trzy przestrzenie robocze, zero budowania, opcjonalne ilustracje AI.',
+      pl: 'Z pliku Markdown, tekstu albo PDF robi prezentację, którą potem edytujesz w przeglądarce. Do wyboru trzy przestrzenie robocze, a jeśli chcesz, AI dorysuje ilustracje.',
       en: 'Turns Markdown, text, or PDF documents into editable slide decks in the browser. Three deck-first workspaces, zero build step, optional AI illustrations.',
     },
     kind: 'webapp',
     icon: 'presentation',
     color: '#1E8FC2', /* blue - matches --blue */
-    meta: { pl: 'przeglądarka · bez budowania', en: 'browser · no build' },
+    meta: { pl: 'w przeglądarce · bez instalacji', en: 'browser · no build' },
     href: 'doc2slide/index.html',
   },
   apps: [
-    { title: 'Sketchbook', desc: { pl: 'Proceduralne arkusze szkiców rysowane kodem chwiejnym, zwężanym piórem: twarze, postacie, zwierzaki, wzory tatuaży, obiekty kosmiczne i dziwne stworki.', en: 'Procedural sketch sheets drawn by code with a wobbly, tapered pen: faces, figures, critters, tattoo flash, space objects, and odd little creatures.' }, kind: 'play', icon: 'pen-tool', color: '#C6478B', meta: { pl: 'generatywne · canvas', en: 'generative · canvas' }, href: 'faces/index.html' },
-    { title: 'Am I in a Story?', desc: { pl: 'Celowo przesadzony quiz o archetypach opowieści, podany jako terminal survival-horroru w stylu EGA z końca lat 80.', en: 'A deliberately overdramatic story-archetype quiz presented as a late-1980s EGA survival-horror terminal.' }, kind: 'play', icon: 'ghost', color: '#7A5AC2', meta: { pl: 'quiz · retro DOS', en: 'quiz · retro DOS' }, href: 'story/index.html' },
-    { title: 'Klocki AI', desc: { pl: 'Klocki edukacyjne tłumaczące, jak trenuje się model AI, jeden element na raz.', en: 'Edu blocks for explaining how an AI model is trained, one snap-together piece at a time.' }, kind: 'edu', icon: 'blocks', color: '#00A651', meta: { pl: 'workszop.org', en: 'workszop.org' }, href: 'https://workszop.org' },
-    { title: 'DrawMe', desc: { pl: 'Zamienia zdjęcie głowy w odręczny portret: portret pamięciowy składany z kandydatów rysowanych chwiejnym piórem i ocenianych przez model wizyjny AI.', en: 'Turns a head photo into a hand-drawn sketch portrait: a police-composite flow of wobbly-pen candidates scored by an AI vision judge.' }, kind: 'play', icon: 'brush', color: '#E5322D', meta: { pl: 'zdjęcie w szkic · sędzia ai', en: 'photo to sketch · ai judge' }, href: 'drawme/index.html' },
-    { title: 'Image Anatomy Explorer', desc: { pl: 'Zagląda do wgranego obrazu: metadane pliku, surowe bajty i kolory piksel po pikselu, a do tego co naprawdę traci się przy zmniejszaniu.', en: 'Peeks inside an uploaded image: file metadata, raw bytes, and pixel-by-pixel colour values, plus what resizing really throws away.' }, kind: 'edu', icon: 'scan-search', color: '#1E8FC2', meta: { pl: 'metadane · piksele · bajty', en: 'metadata · pixels · bytes' }, href: 'img/index.html' },
-    { title: 'BeeHonest', desc: { pl: 'Talia 52 kart do rozmowy, które pomagają poznać siebie i innych. Bez stresu, bez skrępowania, po prostu szczere rozmowy.', en: 'A deck of 52 conversation cards that help you get to know yourself and others. No stress, no awkwardness, just honest conversations.' }, kind: 'webapp', icon: 'messages-square', color: '#FFD500', meta: { pl: 'beehonest.eu', en: 'beehonest.eu' }, href: 'https://beehonest.eu' },
+    { title: 'Sketchbook', desc: { pl: 'Arkusze szkiców, które rysuje kod: chwiejne pióro o zmiennej grubości kreśli twarze, całe postacie, zwierzaki, wzory tatuaży, rakiety i kosmitów oraz dziwne stworki.', en: 'Procedural sketch sheets drawn by code with a wobbly, tapered pen: faces, figures, critters, tattoo flash, space objects, and odd little creatures.' }, kind: 'play', icon: 'pen-tool', color: '#C6478B', meta: { pl: 'generatywne · canvas', en: 'generative · canvas' }, href: 'faces/index.html' },
+    { title: 'Am I in a Story?', desc: { pl: 'Quiz, który sprawdza, jakim archetypem z opowieści jesteś. Celowo przerysowany i udający terminal survival horroru z końca lat 80., w grafice EGA.', en: 'A deliberately overdramatic story-archetype quiz presented as a late-1980s EGA survival-horror terminal.' }, kind: 'play', icon: 'ghost', color: '#7A5AC2', meta: { pl: 'quiz · retro DOS', en: 'quiz · retro DOS' }, href: 'story/index.html' },
+    { title: 'Klocki AI', desc: { pl: 'Klocki do składania, na których widać krok po kroku, jak trenuje się model AI.', en: 'Edu blocks for explaining how an AI model is trained, one snap-together piece at a time.' }, kind: 'edu', icon: 'blocks', color: '#00A651', meta: { pl: 'workszop.org', en: 'workszop.org' }, href: 'https://workszop.org' },
+    { title: 'DrawMe', desc: { pl: 'Ze zdjęcia twarzy robi szkic jak spod ręki rysownika. Działa jak portret pamięciowy: chwiejne pióro rysuje kandydatów, a model AI, który widzi obrazy, wybiera najlepszych.', en: 'Turns a head photo into a hand-drawn sketch portrait: a police-composite flow of wobbly-pen candidates scored by an AI vision judge.' }, kind: 'play', icon: 'brush', color: '#E5322D', meta: { pl: 'ze zdjęcia w szkic · ocenia ai', en: 'photo to sketch · ai judge' }, href: 'drawme/index.html' },
+    { title: 'Image Anatomy Explorer', desc: { pl: 'Pokazuje, co siedzi w obrazku: metadane pliku, surowe bajty, kolor każdego piksela i to, co ginie przy zmniejszaniu.', en: 'Peeks inside an uploaded image: file metadata, raw bytes, and pixel-by-pixel colour values, plus what resizing really throws away.' }, kind: 'edu', icon: 'scan-search', color: '#1E8FC2', meta: { pl: 'metadane · piksele · bajty', en: 'metadata · pixels · bytes' }, href: 'img/index.html' },
+    { title: 'BeeHonest', desc: { pl: 'Talia 52 kart do rozmowy. Pomagają lepiej poznać siebie i innych, bez stresu i bez skrępowania.', en: 'A deck of 52 conversation cards that help you get to know yourself and others. No stress, no awkwardness, just honest conversations.' }, kind: 'webapp', icon: 'messages-square', color: '#FFD500', meta: { pl: 'beehonest.eu', en: 'beehonest.eu' }, href: 'https://beehonest.eu' },
   ],
 };
 
