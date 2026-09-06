@@ -8,13 +8,9 @@
 <link rel="stylesheet" href="shared/chrome.css">
 <link rel="stylesheet" href="shared/palette.css">
 <style>
-  :root { --bar-h: 62px; }
   .edu-header { position: sticky; top: 0; }
 
-  main { max-width: 1100px; margin: 0 auto; padding: 30px 30px 70px; }
-  .lede { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 0 0 22px; }
-  h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--h3); letter-spacing: -.01em; }
-  .lede p { font-family: var(--font-mono); font-size: var(--caption); color: var(--ink-3); }
+  main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
 
   /* ─── The tiles: one card per sheet, a freshly drawn preview on each ─── */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 22px; }
@@ -34,8 +30,8 @@
   .tile-name { font-family: var(--font-display); font-weight: 700; font-size: var(--h4); }
   .tile-blurb { font-size: var(--body-sm); color: var(--ink-2); }
   .tile kbd {
-    margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
-    border: 1px solid var(--line-2); border-radius: var(--r-xs); padding: 1px 6px; background: var(--paper);
+    margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
+    border-radius: var(--r-xs); padding: 2px 7px; background: var(--paper-2);
   }
   .sr-only { position: absolute; left: -9999px; }
   @media (max-width: 768px) {
@@ -48,19 +44,18 @@
 <body class="edu">
 <header class="edu-header"><div class="edu-header-inner">
   <a class="edu-home" href="index.html" aria-label="edulab – all sheets" title="All sheets">
-    <img class="edu-logo" alt="" src="shared/edulab-mark-teal.png">
+    <img class="edu-logo" alt="" src="shared/edulab-mark-ink.png">
     <span class="edu-wordmark">edulab</span>
   </a>
-  <span class="edu-tag">Sketched by code</span>
   <div class="right">
     <button id="redrawTiles" class="edu-btn" title="draw new previews (r)">Redraw previews</button>
   </div>
 </div></header>
 <main>
-  <div class="lede">
-    <h1>Pick a sheet</h1>
-    <p>seven sheets, previews drawn fresh on every visit · keys 1–7 open one · r redraws</p>
-  </div>
+  <header class="page-header">
+    <h1 class="app-title">Sketchbook</h1>
+    <p class="edu-lead">Procedural sketch sheets drawn by code with a wobbly, tapered pen: faces, figures, critters, tattoo flash, space objects, and odd little creatures. Seven sheets, previews drawn fresh on every visit – keys 1–7 open one, r redraws.</p>
+  </header>
   <div class="tiles" id="tiles" role="list" aria-label="Sketch sheets" data-state="drawing"></div>
 </main>
 <p class="sr-only" id="hubLive" aria-live="polite"></p>

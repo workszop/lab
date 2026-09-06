@@ -13,7 +13,7 @@ const sharp = require('sharp');
 
 // ─── Constants ───
 const ROOT = path.join(__dirname, '..');
-const SOURCE = path.join(ROOT, 'faces', 'shared', 'edulab-mark-teal.png');
+const SOURCE = path.join(ROOT, 'faces', 'shared', 'edulab-mark-ink.png');
 const OUT = path.join(ROOT, 'icons');
 const BACKGROUND = '#ffffff';          // manifest background_color
 const MASKABLE_SCALE = 0.6;            // logo size inside the maskable safe zone

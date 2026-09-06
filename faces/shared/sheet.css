@@ -1,5 +1,5 @@
-/* ─── Sheet chrome, in the edulab idiom: warm paper page, white drawing sheet as a card,
-   marigold primary. The reset, top bar and buttons come from shared/chrome.css; colours and
+/* ─── Sheet chrome, in the edulab idiom: white page, the drawing sheet as a card,
+   yellow primary. The reset, top bar and buttons come from shared/chrome.css; colours and
    type from shared/edulab.css; the drawing palette from shared/palette.css + each sheet's :root. ─── */
 body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
 
@@ -13,7 +13,7 @@ main { width: 100%; max-width: 1100px; padding: 22px 30px 70px; display: flex; f
 .controls-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 0 14px; max-width: 860px; width: 100%; }
 .controls-wrap:has(.controls[hidden]) { display: none; }
 button.toggle, .edu-header .right .edu-btn { padding: 6px 14px; font-size: 13px; }
-button.toggle[aria-expanded="true"] { background: var(--paper-2); }
+button.toggle[aria-expanded="true"] { background: var(--paper-2); color: var(--ink); box-shadow: none; }
 .controls {
   display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: center;
   padding: 10px 18px;
@@ -21,7 +21,7 @@ button.toggle[aria-expanded="true"] { background: var(--paper-2); }
   max-width: 860px; width: 100%;
 }
 .ctl { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
-.ctl input[type=range] { width: 110px; accent-color: var(--marigold); }
+.ctl input[type=range] { width: 110px; accent-color: var(--yellow); }
 .ctl output { min-width: 3ch; color: var(--ink-3); font-size: 11px; }
 .ctl select { font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-2); border-radius: var(--r-pill); padding: 4px 10px; }
 .controls[hidden] { display: none; }
@@ -42,7 +42,7 @@ button.toggle[aria-expanded="true"] { background: var(--paper-2); }
 canvas { width: 100%; height: auto; display: block; }
 .cells { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--cols, 6), 1fr); grid-template-rows: repeat(var(--rows, 8), 1fr); }
 .cell { background: transparent; border: 0; padding: 0; cursor: zoom-in; border-radius: var(--r-sm); -webkit-tap-highlight-color: transparent; }
-.cell:focus-visible { outline: 3px solid var(--marigold); outline-offset: -3px; }
+.cell:focus-visible { outline: 3px solid var(--yellow); outline-offset: -3px; }
 .sheet[data-state="drawing"] .cell { cursor: progress; }
 
 /* inside the hub the top bar owns Redraw and the Settings toggle; the sheet keeps Save */

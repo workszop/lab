@@ -1,10 +1,11 @@
-/* ─── Tokens: the drawing palette (from faces/shared/palette.css) plus the
-   edulab UI tokens the app chrome needs (from faces/shared/edulab.css).
-   pen.js and genome.js read colours only from here via tok()/toks(). ─── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+
+/* ─── Tokens: the drawing palette (content – pen.js and genome.js read these via
+   tok()/toks(), keep them exactly) followed by the edulab design tokens
+   (verbatim copy of edustyl/tokens/colors_and_type.css, @import hoisted above). ─── */
 :root {
-  /* ── drawing paper & inks ── */
+  /* ── drawing paper & inks (--ink itself comes from the edulab block below) ── */
   --canvas: #FFFFFF;
-  --ink: #211E1A;
   --ink-sepia: #5B3F2E;
   --ink-blue: #1B4E88;
 
@@ -17,39 +18,187 @@
   --accent-1: #b8463e; --accent-2: #4f6f96; --accent-3: #c9962f;
   --blush: #d98a85;
 
-  /* ── edulab UI chrome: background, text, accent teal/marigold ── */
-  --paper: #FBF7F0;
-  --paper-translucent: rgba(251, 247, 240, 0.85); /* --paper at 85% alpha, for the blurred header bar */
-  --paper-2: #F4EDDF;
-  --paper-3: #ECE1CF;
-  --surface: #FFFFFF;
-  --ink-2: #5B554D;
-  --ink-3: #938A7C;
-  --line: #E7DCCB;
-  --line-2: #D6C8B2;
-
-  --marigold: #E8920C;
-  --marigold-600: #CE800A;
-  --marigold-soft: #FBE7C2;
-  --marigold-ink: #8A4F00;
-
-  --teal: #0E8C7F;
-  --teal-600: #0B7468;
-  --teal-soft: #D2EBE6;
-  --teal-ink: #0A5A52;
-
-  /* ── type ── */
-  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-ui);
-  --font-mono: ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
-
-  /* ── app chrome: radius, shadow, focus ── */
-  --on-primary: #FFFFFF;
-  --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(33, 30, 26, 0.06), 0 1px 1px rgba(33, 30, 26, 0.04);
-  --shadow-md: 0 4px 16px rgba(33, 30, 26, 0.08), 0 1px 3px rgba(33, 30, 26, 0.05);
-  --focus-ring: 0 0 0 3px rgba(232, 146, 12, 0.38);
+  /* ── app aliases ── */
+  --font-ui: var(--font-sans);
+  --paper-translucent: rgba(255, 255, 255, .85); /* header bar: paper (white) @ 85% */
 }
+
+/* ============================================================
+   edulab — Colors & Type foundation
+   Fonts loaded from Google Fonts (CDN). See README "Visual
+   Foundations" for substitution notes.
+   ============================================================ */
+
+:root {
+  /* ---- Brand fonts ---- */
+  --font-display: 'Outfit', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-sans:    'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:    'Roboto Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ============================================================
+     RAW COLOR TOKENS
+     ============================================================ */
+
+  /* Paper — page background is white; the sand steps are wells/alternating sections */
+  --paper:    #FFFFFF;   /* page background (white)    */
+  --paper-2:  #FBF7E6;   /* alternating section        */
+  --paper-3:  #F5EDCB;   /* deepest sand / wells       */
+  --surface:  #FFFFFF;   /* cards & sheets             */
+
+  /* Ink — warm near-black text & lines */
+  --ink:      #1C1917;   /* primary text               */
+  --ink-2:    #57534E;   /* secondary text             */
+  --ink-3:    #948C82;   /* muted / placeholder        */
+  --line:     #EDE7D2;   /* hairline borders           */
+  --line-2:   #DDD4B6;   /* stronger borders           */
+
+  /* ---- Brand: Yellow main · Blue + Green secondary · Red danger ----
+     Plain saturated colours. A "-soft" tint IS the saturated colour
+     (panels and chips are solid), "-ink" is the text colour ON it:
+     white on blue/green/red, dark ink on yellow. Never colour-on-colour
+     (no green text on green); the saturated colour itself goes only on
+     white or black. */
+
+  /* Yellow — primary (buttons, progress, values on dark panels) */
+  --yellow:      #FFD500;
+  --yellow-600:  #F0C800;  /* hover / press          */
+  --yellow-soft: #FFD500;  /* chip / panel fill      */
+  --yellow-ink:  #1C1917;  /* text on yellow         */
+
+  /* Blue — secondary (panels, chips, correct / selected state) */
+  --blue:      #1E8FC2;
+  --blue-600:  #177AA8;
+  --blue-soft: #1E8FC2;
+  --blue-ink:  #FFFFFF;
+
+  /* Green — secondary support (chips, success) */
+  --green:      #00A651;
+  --green-600:  #009444;
+  --green-soft: #00A651;
+  --green-ink:  #FFFFFF;
+
+  /* Red — danger / important / wrong (use sparingly) */
+  --red:      #E5322D;
+  --red-600:  #C92823;
+  --red-soft: #E5322D;
+  --red-ink:  #FFFFFF;
+
+  /* Legacy role aliases — older edulab apps use these names */
+  --marigold: var(--yellow); --marigold-600: var(--yellow-600); --marigold-soft: var(--yellow-soft); --marigold-ink: var(--yellow-ink);
+  --teal:     var(--blue);   --teal-600:     var(--blue-600);   --teal-soft:     var(--blue-soft);   --teal-ink:     var(--blue-ink);
+  --sky:      var(--green);                                     --sky-soft:      var(--green-soft);  --sky-ink:      var(--green-ink);
+  --coral:    var(--red);    --coral-600:    var(--red-600);    --coral-soft:    var(--red-soft);    --coral-ink:    var(--red-ink);
+
+  /* Play palette — subject/category colours in the kids app */
+  --play-sun:    #FFD500;
+  --play-grass:  #00A651;
+  --play-berry:  #C6478B;
+  --play-grape:  #7A5AC2;
+  --play-sky:    #1E8FC2;
+  --play-coral:  #E5322D;
+
+  /* ---- Semantic ---- */
+  --success:      #00A651;  --success-soft: #00A651;  --success-ink: #FFFFFF;
+  --warning:      #FFD500;  --warning-soft: #FFD500;  --warning-ink: #1C1917;
+  --danger:       #E5322D;  --danger-soft:  #E5322D;  --danger-ink:  #FFFFFF;
+  --info:         #1E8FC2;  --info-soft:    #1E8FC2;  --info-ink:    #FFFFFF;
+
+  /* ---- Functional aliases ---- */
+  --bg:        var(--paper);
+  --fg:        var(--ink);
+  --fg-muted:  var(--ink-2);
+  --primary:   var(--yellow);
+  --on-primary:#1C1917;      /* dark text on yellow */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--yellow) 45%, transparent);
+
+  /* ============================================================
+     SPACING  (4pt base)
+     ============================================================ */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --sp-12: 48px; --sp-16: 64px; --sp-20: 80px; --sp-24: 96px;
+
+  /* ---- Radii (friendly, generous) ---- */
+  --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
+
+  /* ---- Elevation — warm, low, soft ---- */
+  --shadow-sm: 0 1px 2px rgba(33,30,26,.06), 0 1px 1px rgba(33,30,26,.04);
+  --shadow-md: 0 4px 16px rgba(33,30,26,.08), 0 1px 3px rgba(33,30,26,.05);
+  --shadow-lg: 0 16px 40px rgba(33,30,26,.12), 0 3px 8px rgba(33,30,26,.06);
+  --shadow-primary:  0 8px 22px color-mix(in srgb, var(--yellow) 30%, transparent);
+  --shadow-marigold: var(--shadow-primary);   /* legacy alias */
+
+  /* ============================================================
+     TYPE SCALE (semantic sizes)
+     ============================================================ */
+  --display-font:  clamp(48px, 6vw, 72px);
+  --h1: 44px; --h2: 33px; --h3: 25px; --h4: 19px;
+  --body-lg: 18px; --body: 16px; --body-sm: 14px;
+  --caption: 13px; --overline: 12px;
+}
+
+/* ============================================================
+   SEMANTIC ELEMENT STYLES
+   Apply via element selectors or .edu-prose wrapper.
+   ============================================================ */
+
+.edu-display, .edu h1.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--display-font);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+.edu h1, .edu-h1 {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: var(--h1);
+  line-height: 1.06; letter-spacing: -0.02em; color: var(--ink);
+}
+.edu h2, .edu-h2 {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: var(--h2);
+  line-height: 1.12; letter-spacing: -0.015em; color: var(--ink);
+}
+.edu h3, .edu-h3 {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: var(--h3);
+  line-height: 1.2; letter-spacing: -0.01em; color: var(--ink);
+}
+.edu h4, .edu-h4 {
+  font-family: var(--font-sans);
+  font-weight: 700; font-size: var(--h4);
+  line-height: 1.3; color: var(--ink);
+}
+.edu p, .edu-p, .edu-body {
+  font-family: var(--font-sans);
+  font-weight: 400; font-size: var(--body);
+  line-height: 1.6; color: var(--ink-2);
+}
+.edu-body-lg { font-family: var(--font-sans); font-size: var(--body-lg); line-height: 1.6; color: var(--ink-2); }
+.edu-small  { font-family: var(--font-sans); font-size: var(--body-sm); line-height: 1.5; color: var(--ink-2); }
+.edu-caption{ font-family: var(--font-sans); font-size: var(--caption); line-height: 1.45; color: var(--ink-3); }
+
+/* Overline — mono, tracked; functional labels only (never above page/section titles) */
+.edu-overline {
+  font-family: var(--font-mono);
+  font-weight: 500; font-size: var(--overline);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink);
+}
+.edu code, .edu-mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em; color: var(--ink);
+  background: var(--paper-3); padding: 0.12em 0.4em; border-radius: var(--r-xs);
+}
+
+/* Solid colour blocks (callouts, stat cards, chips): set background: var(--X-soft) and
+   color: var(--X-ink) on the block, add .edu-block, and every heading/paragraph inside
+   inherits that text colour instead of the default ink. */
+.edu-block, .edu-block h1, .edu-block h2, .edu-block h3, .edu-block h4, .edu-block p,
+.edu-block li, .edu-block small { color: inherit; }
+
+body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
 
 /* ─── Dev harness (dev.html): plain layout, tokens only ─── */
 body.dev {
@@ -57,23 +206,26 @@ body.dev {
   padding: 24px clamp(16px, 4vw, 48px);
   background: var(--paper);
   color: var(--ink);
-  font: 15px/1.5 var(--font-ui);
+  font: 15px/1.5 var(--font-sans);
 }
-body.dev h1 { font-size: 1.35rem; margin: 0 0 4px; }
-body.dev h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--ink-2); letter-spacing: 0.04em; text-transform: uppercase; }
+body.dev h1 { font-family: var(--font-display); font-size: 1.35rem; margin: 0 0 4px; }
+body.dev h2 { font-family: var(--font-mono); font-size: 0.8rem; margin: 28px 0 10px; color: var(--ink-2); letter-spacing: 0.1em; text-transform: uppercase; }
 .dev-note { margin: 0; color: var(--ink-2); }
-.dev-note code { background: var(--paper-3); padding: 1px 5px; border-radius: 4px; }
+.dev-note code { font-family: var(--font-mono); background: var(--paper-3); padding: 1px 5px; border-radius: var(--r-xs); }
 
+/* probe rows: full solid blocks, never a coloured side rule */
 .probe-list { display: flex; flex-direction: column; gap: 6px; }
 .probe-row {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 8px;
-  border-left: 4px solid var(--line-2);
-  background: var(--surface);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--paper-2);
+  color: var(--ink-2);
 }
-.probe-row[data-pass="true"] { border-left-color: var(--teal); background: var(--teal-soft); color: var(--teal-ink); }
-.probe-row[data-pass="false"] { border-left-color: var(--marigold-600); background: var(--marigold-soft); color: var(--marigold-ink); }
+.probe-row[data-pass="true"] { background: var(--green-soft); color: var(--green-ink); }
+.probe-row[data-pass="false"] { background: var(--red-soft); color: var(--red-ink); }
 
 .face-grid {
   display: grid;
@@ -85,13 +237,13 @@ body.dev h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--ink-2); letter-
   margin: 0;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.face-cell canvas { width: 100%; height: auto; display: block; background: var(--canvas); border-radius: 6px; }
+.face-cell canvas { width: 100%; height: auto; display: block; background: var(--canvas); border-radius: var(--r-xs); }
 .face-cell figcaption { font-size: 0.75rem; color: var(--ink-2); }
 
 @media (max-width: 768px) {
@@ -99,57 +251,67 @@ body.dev h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--ink-2); letter-
 }
 
 /* ============================================================
-   APP CHROME – draw.html: header, layout regions, upload zone,
-   grid, controls, log, probe panel. edulab look, tokens only.
+   APP CHROME – index.html: header, page title, layout regions,
+   upload zone, grid, controls, log, probe panel. edulab look,
+   tokens only.
    ============================================================ */
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-ui); min-height: 100vh; }
+body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-sans); min-height: 100vh; }
 
+/* ─── Branded top menu: ink horse mark + "edulab" wordmark, sticky + blurred ─── */
 .edu-header {
-  width: 100%;
+  position: sticky; top: 0; z-index: 50; width: 100%;
   background: var(--paper-translucent);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
 }
-.edu-header-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; min-height: 62px; display: flex; align-items: center; gap: 12px; }
+/* the app is a wide three-column workbench, so the header row shares #app's
+   1420px cap rather than the 1100px content shell; paddings match the recipe */
+.edu-header-inner { max-width: 1420px; margin: 0 auto; padding: 8px 30px; display: flex; align-items: center; gap: 12px; }
+.edu-logo { width: 64px; height: 64px; display: block; margin-right: -6px; flex: 0 0 auto; }
 .edu-wordmark { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: -0.02em; color: var(--ink); }
-.edu-tag {
-  font-family: var(--font-mono); font-weight: 500; font-size: 11px; letter-spacing: 0.14em;
-  text-transform: uppercase; white-space: nowrap; color: var(--teal-ink); background: var(--teal-soft);
-  padding: 4px 9px; border-radius: var(--r-pill);
-}
 .edu-header .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 /* header-controls (Task 9): Start/Pause/Stop + the "Gen g/10" progress bar, moved
    from the old center-column controls-bar into the header's right side. */
 .header-controls { margin-left: auto; }
-.header-controls-inner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.header-controls-inner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* header-photo-actions: Restart + New photo, grouped apart from Start/Pause/Stop
-   with a thin separator when the run controls are also showing (hidden on the
-   done screen, where this group renders alone - no orphan border then). */
+   with a neutral hairline separator when the run controls are also showing (hidden
+   on the done screen, where this group renders alone - no orphan border then). */
 .header-photo-actions { display: flex; align-items: center; gap: 10px; }
 .header-controls-inner.has-run-controls .header-photo-actions {
   margin-right: 4px; padding-right: 14px; border-right: 1px solid var(--line-2);
 }
 
+/* ─── Page header: centred solid-ink display title + full-width lead ─── */
+.page-header { max-width: 1100px; margin: 0 auto; padding: 34px 30px 6px; text-align: center; }
+.app-title {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(2rem, 4.5vw, 2.85rem); letter-spacing: -0.025em;
+  line-height: 1.05; color: var(--ink); margin: 0 0 12px;
+}
+.edu-lead { font-family: var(--font-sans); font-size: 1.0625rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
+
+/* ─── Buttons: yellow primary with dark ink, neutral ghost ─── */
 .edu-btn {
   font-family: var(--font-display); font-weight: 600; font-size: 14px;
-  background: var(--marigold); color: var(--on-primary); border: none;
+  background: var(--yellow); color: var(--yellow-ink); border: none;
   border-radius: var(--r-pill); padding: 9px 18px; cursor: pointer;
   transition: background-color 0.15s, transform 0.12s cubic-bezier(0.32, 0.72, 0.32, 1);
 }
-.edu-btn:hover:not(:disabled) { background: var(--marigold-600); }
+.edu-btn:hover:not(:disabled) { background: var(--yellow-600); }
 .edu-btn:active:not(:disabled) { transform: scale(0.96); }
 .edu-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .edu-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .edu-btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); }
 .edu-btn.ghost:hover:not(:disabled) { background: var(--paper-2); }
-/* the Manual toggle, pressed = manual mode on (AI judge off) */
-.edu-btn.manual-toggle.is-on { background: var(--teal-soft); color: var(--teal-ink); border-color: var(--teal); }
-.edu-btn.manual-toggle.is-on:hover:not(:disabled) { background: var(--teal-soft); border-color: var(--teal-600); }
+/* the Manual toggle, pressed = manual mode on (AI judge off): a solid blue pill */
+.edu-btn.manual-toggle.is-on { background: var(--blue); color: var(--blue-ink); border-color: var(--blue); }
+.edu-btn.manual-toggle.is-on:hover:not(:disabled) { background: var(--blue-600); border-color: var(--blue-600); }
 
 #app {
   display: grid;
@@ -158,28 +320,30 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   align-items: start;
   max-width: 1420px; /* sized so the 4x3 grid's bottom lands level with the settings (AI) panel's bottom */
   margin: 0 auto;
-  padding: 18px 24px 12px;
-  min-height: calc(100vh - 62px);
+  padding: 18px 30px 12px;
 }
 
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 14px;
+  border-radius: var(--r-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
 /* phase transitions as short fades (Task 7): every App.set() rebuilds the center
    column from scratch, so a freshly-created .col-center fades in on every state/phase
    change – Start, judging -> reviewing, a generation advancing, reaching done, etc. */
 .col-center { animation: panel-fade-in 0.2s ease-out; }
 @keyframes panel-fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* panel headings are functional labels (overline), not section titles */
 .panel h2 {
   margin: 0 0 10px;
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--overline);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
 .col-left { display: flex; flex-direction: column; gap: 14px; }
@@ -194,35 +358,35 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   font-size: 0.85rem;
   transition: border-color 0.15s, background-color 0.15s;
 }
-.dropzone:hover, .dropzone.drag-over { border-color: var(--teal); background: var(--teal-soft); }
+.dropzone:hover, .dropzone.drag-over { border-color: var(--blue); background: var(--paper-2); }
 .dropzone:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .dropzone input[type="file"] { display: none; }
-.dropzone-error { color: var(--marigold-ink); font-size: 0.8rem; margin-top: 8px; }
+.dropzone-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; }
 
 .photo-preview { margin-top: 12px; }
 .photo-preview img { display: block; width: 100%; height: auto; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--paper-2); }
 
 .settings-panel { transition: border-color 0.2s, box-shadow 0.2s; }
-.settings-panel.is-highlighted { border-color: var(--marigold); box-shadow: var(--focus-ring); }
+.settings-panel.is-highlighted { border-color: var(--yellow); box-shadow: var(--focus-ring); }
 .settings-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .settings-row label { font-size: 0.76rem; color: var(--ink-2); font-weight: 600; }
 .settings-row select, .settings-row input {
-  font-family: var(--font-ui); font-size: 0.85rem; color: var(--ink);
+  font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink);
   background: var(--paper); border: 1px solid var(--line-2); border-radius: var(--r-sm);
   padding: 7px 9px;
 }
 .settings-row select:focus-visible, .settings-row input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .settings-note { color: var(--ink-3); font-size: 0.76rem; line-height: 1.5; margin: 8px 0 0; }
-.settings-error { color: var(--marigold-ink); font-size: 0.8rem; margin: 8px 0 0; }
+.settings-error { color: var(--red); font-size: 0.8rem; margin: 8px 0 0; }
 /* Task 13: key-shape guard warning (non-blocking, under the key field) and the
    paste-time auto-heal status note – distinct tone from settings-error since
    neither blocks Start on its own. */
-.settings-key-warning { color: var(--marigold-ink); font-size: 0.76rem; margin: 6px 0 0; }
-.settings-key-note { color: var(--teal-ink); font-size: 0.76rem; margin: 6px 0 0; }
+.settings-key-warning { color: var(--red); font-size: 0.76rem; margin: 6px 0 0; }
+.settings-key-note { color: var(--ink-2); font-size: 0.76rem; margin: 6px 0 0; }
 
 /* model discovery + "Get a key" link (Task 9) */
 .settings-key-link {
-  align-self: flex-start; font-size: 0.76rem; color: var(--teal-ink);
+  align-self: flex-start; font-size: 0.76rem; color: var(--blue);
   text-decoration: none; margin-top: 2px;
 }
 .settings-key-link:hover { text-decoration: underline; }
@@ -238,7 +402,7 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 
 .judging-indicator {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--marigold); margin-right: 6px; vertical-align: middle;
+  background: var(--yellow); margin-right: 6px; vertical-align: middle;
   animation: judging-pulse 1s ease-in-out infinite;
 }
 @keyframes judging-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
@@ -247,7 +411,7 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 
 /* run status (Task 9): moved out of the old .controls-bar into its own line above
    the review bar, in the center column, next to the grid it describes. */
-.review-status { font-family: var(--font-mono); font-size: 0.78rem; color: var(--teal-ink); }
+.review-status { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-2); }
 
 /* progress bar: "generation g / 10", visible only while a run is under way. The
    track (.progress-bar-track) is a fixed-width background bar; .progress-bar-fill
@@ -258,7 +422,7 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 }
 .progress-bar-fill {
   height: 6px; width: 0; border-radius: var(--r-pill);
-  background: var(--marigold); transition: width 0.3s ease;
+  background: var(--yellow); transition: width 0.3s ease;
 }
 .progress-bar-fill-track {
   flex: 1 1 auto; height: 6px; border-radius: var(--r-pill);
@@ -269,11 +433,11 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 /* review countdown bar (Task 7): thin bar draining over REVIEW_MS; width transitions
    are driven from app.js (renderReviewBar), disabled globally under reduced motion. */
 .review-bar {
-  height: 3px; width: 100%; border-radius: var(--r-pill);
+  height: 4px; width: 100%; border-radius: var(--r-pill);
   background: var(--paper-3); overflow: hidden;
 }
 .review-bar-fill {
-  height: 100%; width: 100%; background: var(--teal);
+  height: 100%; width: 100%; background: var(--blue);
   transition-property: width; transition-timing-function: linear;
 }
 
@@ -288,31 +452,32 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   position: relative;
   background: var(--surface);
   border: 2px solid var(--line);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
   padding: 6px;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   animation: cell-fade-in 0.25s ease-out;
 }
-.cell:hover { border-color: var(--teal); }
+.cell:hover { border-color: var(--blue); }
 .cell:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.cell canvas { display: block; width: 100%; height: auto; background: var(--canvas); border-radius: 4px; }
+.cell canvas { display: block; width: 100%; height: auto; background: var(--canvas); border-radius: var(--r-xs); }
 .cell .cell-badge {
   position: absolute; top: 10px; left: 10px;
   background: var(--surface); color: var(--ink-2);
   font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600;
   border-radius: var(--r-pill); padding: 1px 7px; border: 1px solid var(--line-2);
 }
-/* wild-card marker: a small spark opposite the number badge. Shown in the DOM only –
-   buildGridJpeg never draws it, so the judge cannot tell a wild card from a variant. */
+/* wild-card marker: a small spark opposite the number badge, a solid blue chip.
+   Shown in the DOM only – buildGridJpeg never draws it, so the judge cannot tell a
+   wild card from a variant. */
 .cell .cell-wild {
   position: absolute; top: 10px; right: 10px;
-  background: var(--teal-soft); color: var(--teal-ink);
+  background: var(--blue-soft); color: var(--blue-ink);
   font-size: 0.72rem; line-height: 1; font-weight: 700;
-  border-radius: var(--r-pill); padding: 3px 6px; border: 1px solid var(--teal);
+  border-radius: var(--r-pill); padding: 4px 7px; border: none;
 }
 .cell.is-wild { border-style: dashed; }
-.cell.is-wild:hover { border-color: var(--teal); }
+.cell.is-wild:hover { border-color: var(--blue); }
 
 /* locked panel: once a winner stands, the other cells stop looking clickable until
    the next step's panel appears (picking is ignored in onCellPick anyway) */
@@ -320,28 +485,37 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 .cell.is-locked:hover { border-color: var(--line); }
 .cell.is-wild.is-locked:hover { border-color: var(--line); }
 
-/* winner highlight (Task 7): an opacity fade, not a shape/position change – a new
-   .is-winner cell is a freshly-rendered DOM node each time (render() rebuilds the
-   whole grid), so this animation naturally replays on every new pick or override. */
-.cell.is-winner { border-color: var(--marigold); animation: cell-winner-fade 0.5s ease-out; }
-.cell.is-winner .cell-badge { background: var(--marigold-soft); color: var(--marigold-ink); border-color: var(--marigold); }
+/* winner highlight (Task 7): a full 3px yellow ring (2px border + 1px shadow ring)
+   plus an opacity fade, not a shape/position change – a new .is-winner cell is a
+   freshly-rendered DOM node each time (render() rebuilds the whole grid), so this
+   animation naturally replays on every new pick or override. */
+.cell.is-winner {
+  border-color: var(--yellow); border-style: solid;
+  box-shadow: 0 0 0 1px var(--yellow);
+  animation: cell-winner-fade 0.5s ease-out;
+}
+.cell.is-winner .cell-badge { background: var(--yellow-soft); color: var(--yellow-ink); border-color: var(--yellow); }
 @keyframes cell-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes cell-winner-fade { 0% { opacity: 0.35; } 100% { opacity: 1; } }
 
 .col-right { display: flex; flex-direction: column; gap: 14px; }
 #log { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto; }
 #log:empty::before { content: "No generations run yet."; color: var(--ink-3); font-size: 0.82rem; }
+/* log entries are sand wells; the pick source shows as a full contour (blue = you,
+   yellow = AI), never a side rule */
 .log-entry {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   font-size: 0.8rem;
-  border-left: 3px solid var(--line-2);
-  padding: 4px 8px;
+  background: var(--paper-2);
+  border: 2px solid var(--paper-2);
+  border-radius: var(--r-sm);
+  padding: 6px 8px;
   color: var(--ink-2);
 }
-.log-entry[data-source="manual"] { border-left-color: var(--teal); }
-.log-entry[data-source="ai"] { border-left-color: var(--marigold); }
+.log-entry[data-source="manual"] { border-color: var(--blue); }
+.log-entry[data-source="ai"] { border-color: var(--yellow); }
 
 /* winner thumbnail (Task 9): sits left of the entry text, sized in css px – the
    backing canvas resolution is device-pixel-ratio scaled from app.js. */
@@ -369,32 +543,38 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 .done-actions .is-disabled { opacity: 0.45; pointer-events: none; }
 
 .edu-footer {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 6px 24px 20px;
+  max-width: 1420px;
+  margin: 12px auto 0;
+  padding: 12px 30px 24px;
+  border-top: 1px solid var(--line);
   color: var(--ink-3);
-  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
-#probes { max-width: 1400px; margin: 0 auto; padding: 0 24px 16px; }
+#probes { max-width: 1420px; margin: 0 auto; padding: 0 30px 16px; }
+#probes h2 { font-family: var(--font-display); font-weight: 600; font-size: var(--h3); letter-spacing: -0.01em; color: var(--ink); margin: 0; }
 #probes .probe-list { margin-top: 8px; }
 
 @media (max-width: 768px) {
-  .edu-header-inner { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+  .edu-header-inner { padding: 8px 14px; gap: 8px; flex-wrap: wrap; }
+  .edu-logo { width: 48px; height: 48px; }
   .edu-wordmark { font-size: 18px; }
-  .edu-tag { display: none; }
   .edu-btn { padding: 8px 14px; font-size: 13px; }
   /* header controls (Task 9): wrap onto their own full-width row instead of
      overflowing when Start/Pause/Stop + the progress bar no longer fit beside
      the wordmark. */
   .header-controls { margin-left: 0; width: 100%; }
-  .header-controls-inner { width: 100%; }
+  .header-controls-inner { width: 100%; justify-content: flex-start; }
   .progress-bar { max-width: none; }
+  .page-header { padding: 24px 14px 4px; }
   #app {
     grid-template-columns: 1fr;
     padding: 12px 14px 8px;
   }
   #grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .edu-footer, #probes { padding-left: 14px; padding-right: 14px; }
 }
 
 /* prefers-reduced-motion (Task 7): collapse every animation/transition in the app to

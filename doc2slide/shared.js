@@ -265,7 +265,7 @@ const AI_SELECTOR_CSS = `
 .ai-dialog .ai-providers button{flex:1;padding:.5em 0;border:1px solid var(--border, #8884);
   border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer;}
 .ai-dialog .ai-providers button[aria-pressed="true"]{border-color:var(--accent, currentColor);
-  background:var(--accent, currentColor);color:var(--bg, Canvas);}
+  background:var(--accent, currentColor);color:var(--on-primary, var(--bg, Canvas));}
 .ai-dialog .ai-note{font-size:.75em;opacity:.7;margin:.4em 0 0;}
 .ai-dialog .ai-note a{color:inherit;}
 .ai-dialog .ai-model-head{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;}

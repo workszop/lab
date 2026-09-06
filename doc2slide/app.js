@@ -173,9 +173,9 @@ Drop your own document in the panel on the left.`,
     exampleMd: EXAMPLE_DECK,
     illustrations: false,
     pptx: {
-      headingFont: "Raleway",
-      bodyFont: "Raleway",
-      monoFont: "DM Mono",
+      headingFont: "Outfit",
+      bodyFont: "IBM Plex Sans",
+      monoFont: "Roboto Mono",
       company: "",
     },
     title: null,
@@ -190,6 +190,7 @@ Drop your own document in the panel on the left.`,
   const T = {
     pl: {
       appTitle: "doc2slide",
+      appLead: "Zamienia dokumenty Markdown, tekst lub PDF w edytowalne prezentacje w przeglądarce.",
       hintNext: "dalej", hintPrev: "wstecz", hintEsc: "edycja",
       dropHere: "Wgraj plik",
       browse: "Wybierz plik",
@@ -252,6 +253,7 @@ Drop your own document in the panel on the left.`,
     },
     en: {
       appTitle: "doc2slide",
+      appLead: "Turns Markdown, text or PDF documents into editable slide decks in the browser.",
       hintNext: "next", hintPrev: "back", hintEsc: "edit",
       dropHere: "Upload a file",
       browse: "Choose file",
@@ -398,6 +400,10 @@ Drop your own document in the panel on the left.`,
 </header>
 
 <main id="app" aria-live="polite">
+  <header class="app-head" id="appHead">
+    <h1 class="app-title" data-i18n="appTitle"></h1>
+    <p class="edu-lead" data-i18n="appLead"></p>
+  </header>
   <div class="workbench" id="view-workspace">
     <aside class="panel">
       <section class="side-section">

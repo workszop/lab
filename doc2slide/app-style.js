@@ -18,9 +18,9 @@
   // The picker drives slide-scoped tokens only, so the app chrome keeps the
   // brand font no matter what the user selects for the deck.
   const DECK_FONTS = [
-    { name: "Raleway", stack: "system-ui, sans-serif" },
-    { name: "Lato", stack: "system-ui, sans-serif" },
-    { name: "Poppins", stack: "system-ui, sans-serif" },
+    { name: "Outfit", stack: "IBM Plex Sans, sans-serif" },
+    { name: "IBM Plex Sans", stack: "Outfit, sans-serif" },
+    { name: "Poppins", stack: "IBM Plex Sans, sans-serif" },
     { name: "PT Serif", stack: "Georgia, serif" },
   ];
   // Google's CSS API takes the family verbatim, so anything outside this
@@ -98,7 +98,7 @@
       const known = DECK_FONTS.find(f => f.name.toLowerCase() === clean.toLowerCase());
       // Unquoted multi-word families are valid CSS and keep the value inside
       // the character set collectExportPresetCss is willing to inline.
-      const stack = `${clean}, ${known?.stack ?? "system-ui, sans-serif"}`;
+      const stack = `${clean}, ${known?.stack ?? "IBM Plex Sans, sans-serif"}`;
       loadGoogleFont(clean);
       const rs = document.documentElement.style;
       rs.setProperty("--slide-heading-font", stack);
