@@ -172,7 +172,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
   font-family: var(--font-display); font-weight: 800;
   font-size: clamp(2rem, 4.5vw, 2.85rem); letter-spacing: -.025em;
   line-height: 1.05; color: var(--ink);
-  margin: 0 0 16px;
+  margin: 0;
 }
 .edu-lead { font-size: 1.0625rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
 
@@ -308,7 +308,6 @@ footer {
 <main>
   <header class="page-header">
     <h1 class="app-title" data-t="title"></h1>
-    <p class="edu-lead" data-t="lead"></p>
   </header>
 
   <a class="featured" id="featured" href="">
@@ -352,7 +351,6 @@ const LANG_KEY = 'lab.lang';
 const T = {
   pl: {
     title: 'Małe narzędzia, które robią swoje',
-    lead: 'Kilka niezależnych aplikacji na jednej półce: generator prezentacji, szkicownik rysowany kodem, klocki do nauki AI, karty do rozmów i jeden mocno przerysowany quiz. Każda otwiera się w przeglądarce, niczego nie trzeba instalować.',
     featured: 'Polecane',
     open: 'Otwórz aplikację',
     allApps: 'Wszystkie aplikacje',
@@ -364,7 +362,6 @@ const T = {
   },
   en: {
     title: 'Small tools, built to be used',
-    lead: 'A small shelf of self-contained web apps: a slide-deck maker, generative sketching, AI-training blocks, conversation cards, and one overdramatic quiz. Everything runs in the browser, no build step.',
     featured: 'Featured',
     open: 'Open the app',
     allApps: 'All apps',
