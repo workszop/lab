@@ -282,8 +282,8 @@
         }
 
         .upload-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
+            display: block; width: 56px; height: 56px;
+            margin: 0 auto 1rem; color: var(--ink-2);
         }
 
         .upload-zone h3 {
@@ -362,7 +362,7 @@
         }
 
         .card-header .icon {
-            font-size: 1.3rem;
+            display: block; width: 22px; height: 22px; color: var(--ink);
         }
 
         .card-header h2 {
@@ -722,6 +722,14 @@
             margin-bottom: 0.5rem;
             font-size: 0.95rem;
         }
+        .encoding-explanation h4 svg {
+            width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px;
+        }
+        .inline-icon {
+            display: inline-block; width: 16px; height: 16px;
+            vertical-align: -3px; margin-right: 6px;
+        }
+        i[data-lucide] { display: inline-block; }
 
         .encoding-explanation p {
             font-family: var(--font-sans);
@@ -788,7 +796,7 @@
         </header>
 
         <div class="upload-zone" id="uploadZone">
-            <div class="upload-icon">📁</div>
+            <i class="upload-icon" data-lucide="image-up" aria-hidden="true"></i>
             <h3>Drop an image here</h3>
             <p>or click to browse (PNG, JPG, GIF, WebP)</p>
             <input type="file" id="fileInput" accept="image/*">
@@ -803,7 +811,7 @@
             <!-- Metadata Card -->
             <div class="card">
                 <div class="card-header">
-                    <span class="icon">📋</span>
+                    <i class="icon" data-lucide="clipboard-list" aria-hidden="true"></i>
                     <h2>File Metadata</h2>
                 </div>
                 <div class="card-body">
@@ -811,7 +819,7 @@
                         <!-- Populated by JS -->
                     </div>
                     <div class="encoding-explanation">
-                        <h4>💡 What is Metadata?</h4>
+                        <h4><i data-lucide="lightbulb" aria-hidden="true"></i>What is Metadata?</h4>
                         <p>Metadata is "data about data" – information stored alongside your image like file name, size, and format. The computer uses this to know how to read the file!</p>
                     </div>
                 </div>
@@ -820,7 +828,7 @@
             <!-- Original vs Resized -->
             <div class="card">
                 <div class="card-header">
-                    <span class="icon">📐</span>
+                    <i class="icon" data-lucide="scaling" aria-hidden="true"></i>
                     <h2>Size Comparison</h2>
                 </div>
                 <div class="card-body">
@@ -842,7 +850,7 @@
                         </div>
                     </div>
                     <div class="encoding-explanation">
-                        <h4>💡 How Resizing Works</h4>
+                        <h4><i data-lucide="lightbulb" aria-hidden="true"></i>How Resizing Works</h4>
                         <p>When you shrink an image, the computer must decide which pixels to keep. This is called <code>downsampling</code>. Making images smaller reduces file size but loses detail!</p>
                     </div>
                 </div>
@@ -851,7 +859,7 @@
             <!-- Binary Data -->
             <div class="card full-width">
                 <div class="card-header">
-                    <span class="icon">🔢</span>
+                    <i class="icon" data-lucide="binary" aria-hidden="true"></i>
                     <h2>Raw Binary Data (First 512 bytes)</h2>
                 </div>
                 <div class="card-body">
@@ -873,7 +881,7 @@
                         </div>
                     </div>
                     <div class="encoding-explanation">
-                        <h4>💡 What is Binary Data?</h4>
+                        <h4><i data-lucide="lightbulb" aria-hidden="true"></i>What is Binary Data?</h4>
                         <p>Computers store everything as numbers. Each <code>byte</code> (8 bits) can hold a value from 0-255. Here we show bytes in <code>hexadecimal</code> (base-16) because it's more compact: <code>FF</code> = 255, <code>00</code> = 0. The first bytes often contain the file's "magic number" – a signature that identifies the file type!</p>
                     </div>
                 </div>
@@ -882,7 +890,7 @@
             <!-- Pixel Explorer -->
             <div class="card full-width">
                 <div class="card-header">
-                    <span class="icon">🎨</span>
+                    <i class="icon" data-lucide="palette" aria-hidden="true"></i>
                     <h2>Pixel Explorer</h2>
                 </div>
                 <div class="card-body pixel-explorer">
@@ -901,7 +909,7 @@
                         <button class="btn" id="toggleValues">Toggle RGB Values</button>
                     </div>
                     <p style="font-family: var(--font-sans); color: var(--ink-2); font-size: 0.85rem; margin-bottom: 1rem;">
-                        📊 Downsampled to: <span id="resolutionDisplay" style="color: var(--ink); font-family: var(--font-mono);">--</span>
+                        <i class="inline-icon" data-lucide="grid-3x3" aria-hidden="true"></i>Downsampled to: <span id="resolutionDisplay" style="color: var(--ink); font-family: var(--font-mono);">--</span>
                     </p>
                     <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-start;">
                         <div style="flex: 0 0 auto;">
@@ -925,15 +933,18 @@
                         </div>
                     </div>
                     <div class="encoding-explanation">
-                        <h4>💡 How Pixels Store Color</h4>
+                        <h4><i data-lucide="lightbulb" aria-hidden="true"></i>How Pixels Store Color</h4>
                         <p>Each pixel uses 3 numbers (0-255) for <code>Red</code>, <code>Green</code>, and <code>Blue</code>. Mixing these creates all colors! <code>R:255 G:0 B:0</code> = pure red. <code>R:255 G:255 B:255</code> = white. That's 256 × 256 × 256 = <strong>16.7 million</strong> possible colors!</p>
-                        <p style="margin-top: 0.5rem;">🔍 <strong>What you see above:</strong> The entire image downsampled to a tiny grid. Lower resolution = fewer pixels = you can see each one! This is exactly how computer vision models "see" images.</p>
+                        <p style="margin-top: 0.5rem;"><i class="inline-icon" data-lucide="search" aria-hidden="true"></i><strong>What you see above:</strong> The entire image downsampled to a tiny grid. Lower resolution = fewer pixels = you can see each one! This is exactly how computer vision models "see" images.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+<script src="https://unpkg.com/lucide@1.34.0/dist/umd/lucide.min.js"
+        integrity="sha384-TkyaYJPudUfB9a60ZTQjPXXxBGDxeXJy48PDE1DeZnOdKs/QdAs3pP/B9ApNJIH8"
+        crossorigin="anonymous"></script>
     <script>
         // State
         let originalImage = null;
@@ -1312,6 +1323,8 @@
         document.getElementById('toggleGrid').classList.add('active');
     
         // ─── Init ───
+        /* the CDN may be blocked or down: the page reads fine without its decorative icons */
+        if (window.lucide) lucide.createIcons();
         // ?sample=1 loads the bundled sample straight away (after every declaration above)
         if (new URLSearchParams(location.search).get('sample') === '1') loadSample();
 </script>
