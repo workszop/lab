@@ -13,7 +13,8 @@
 <style>
   .edu-header { position: sticky; top: 0; }
 
-  main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
+  body.edu { display: flex; flex-direction: column; min-height: 100vh; }
+  main { max-width: 1100px; margin: 0 auto; padding: 40px 30px 70px; }
 
   /* ─── The tiles: one card per sheet, a freshly drawn preview on each ─── */
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 22px; }
@@ -30,13 +31,14 @@
   .thumb canvas { width: 100%; height: auto; aspect-ratio: 750 / 605; display: block; }
   .tile[data-state="drawing"] { cursor: progress; }
   /* card anatomy: the name / blurb / key row is the tile's stone head strip (shown above the preview) */
+  /* the head strip wears the sheet's own tone (data-tone, tokens in shared/chrome.css) */
   .tile-text { order: -1; display: flex; align-items: baseline; gap: 10px; padding: 12px 16px 13px;
-    background: var(--paper-2); border-bottom: 1px solid var(--line); }
+    background: var(--tone); color: var(--tone-ink); }
   .tile-name { font-family: var(--font-display); font-weight: 700; font-size: var(--h4); }
-  .tile-blurb { font-size: var(--body-sm); color: var(--ink-2); }
+  .tile-blurb { font-size: var(--body-sm); color: inherit; }
   .tile kbd {
-    margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
-    border-radius: var(--r-xs); padding: 2px 7px; background: var(--paper-3);
+    margin-left: auto; font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: inherit;
+    border-radius: var(--r-xs); padding: 2px 7px; background: color-mix(in srgb, var(--tone-ink) 16%, transparent);
   }
   .sr-only { position: absolute; left: -9999px; }
   @media (max-width: 768px) {
@@ -56,13 +58,18 @@
     <button id="redrawTiles" class="edu-btn" title="draw new previews (r)">Redraw previews</button>
   </div>
 </div></header>
-<main>
+<section class="hero edu-block" data-tone="berry">
+  <svg class="hero-ghost" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/><path d="m2.3 2.3 7.286 7.286"/><circle cx="11" cy="11" r="2"/></svg>
   <header class="page-header">
     <h1 class="app-title">Sketchbook</h1>
     <p class="edu-lead">Procedural sketch sheets drawn by code with a wobbly, tapered pen: faces, figures, critters, tattoo flash, space objects, and odd little creatures. Seven sheets, previews drawn fresh on every visit – keys 1–7 open one, r redraws.</p>
   </header>
+</section>
+<div class="work-band">
+<main>
   <div class="tiles" id="tiles" role="list" aria-label="Sketch sheets" data-state="drawing"></div>
 </main>
+</div>
 <p class="sr-only" id="hubLive" aria-live="polite"></p>
 
 <script src="shared/pen.js"></script>
@@ -85,13 +92,13 @@
 
 /* ─── Constants ─── */
 const TILES = [
-  { id: 'faces',   label: 'Faces',   blurb: 'ink & marker portraits',   file: 'faces.html' },
-  { id: 'figures', label: 'Figures', blurb: 'whole people, head to toe', file: 'figures.html' },
-  { id: 'animals', label: 'Animals', blurb: 'a pageful of critters',    file: 'animals.html' },
-  { id: 'tattoo',  label: 'Tattoo',  blurb: 'old-school flash',         file: 'tattoo.html' },
-  { id: 'space',   label: 'Space',   blurb: 'rockets, rovers & aliens', file: 'space.html' },
-  { id: 'creatures', label: 'Creatures', blurb: 'odd little beings',    file: 'creatures.html' },
-  { id: 'mix',     label: 'Mix',     blurb: 'every hand, shuffled',     file: 'mix.html' },
+  { id: 'faces',   label: 'Faces',   blurb: 'ink & marker portraits',   tone: 'yellow', file: 'faces.html' },
+  { id: 'figures', label: 'Figures', blurb: 'whole people, head to toe', tone: 'blue', file: 'figures.html' },
+  { id: 'animals', label: 'Animals', blurb: 'a pageful of critters',    tone: 'green', file: 'animals.html' },
+  { id: 'tattoo',  label: 'Tattoo',  blurb: 'old-school flash',         tone: 'red', file: 'tattoo.html' },
+  { id: 'space',   label: 'Space',   blurb: 'rockets, rovers & aliens', tone: 'grape', file: 'space.html' },
+  { id: 'creatures', label: 'Creatures', blurb: 'odd little beings',    tone: 'berry', file: 'creatures.html' },
+  { id: 'mix',     label: 'Mix',     blurb: 'every hand, shuffled',     tone: 'ink', file: 'mix.html' },
 ];
 const PCOLS = 3, PROWS = 2;            // cells per preview
 const STD_H = 2420 / ROWS;             // the standard cell; taller collections are scaled to fit it
@@ -119,7 +126,7 @@ function redirectFromHash() {
 
 /* ─── Render ─── */
 tilesEl.innerHTML = TILES.map((t, i) => `
-  <a class="tile" role="listitem" href="${t.file}${seedQ}" data-collection="${t.id}" data-state="drawing">
+  <a class="tile" role="listitem" href="${t.file}${seedQ}" data-collection="${t.id}" data-tone="${t.tone}" data-state="drawing">
     <span class="thumb"><canvas aria-hidden="true"></canvas></span>
     <span class="tile-text">
       <span class="tile-name">${t.label}</span>

@@ -32,11 +32,39 @@ a.edu-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .edu-btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: var(--shadow-sm); }
 .edu-btn.ghost:hover { background: var(--paper-2); }
 
-/* the page header: left-aligned on the content column, solid-ink display title, full-width lead,
-   a --line-2 rule under the block */
-.page-header { text-align: left; margin: 0 0 32px; padding: 10px 0 32px; border-bottom: 1px solid var(--line-2); }
-.app-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.3rem, 5vw, 3.3rem); letter-spacing: -.025em; line-height: 1.05; color: var(--ink); margin: 0 0 14px; }
-.edu-lead { font-family: var(--font-sans); font-size: 1.15rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
+/* ─── Colour tones: each sheet owns one (hub tile head + the sheet's own band); the
+   Sketchbook itself is berry, as on the lab landing card. --berry-deep darkens the play
+   berry just enough for white body text (5.2:1). ─── */
+:root { --berry-deep: color-mix(in srgb, var(--play-berry) 90%, var(--ink)); }
+[data-tone] { --tone: var(--berry-deep); --tone-ink: var(--red-ink); }
+[data-tone="yellow"] { --tone: var(--yellow-soft); --tone-ink: var(--yellow-ink); }
+[data-tone="blue"]   { --tone: var(--blue-soft);   --tone-ink: var(--blue-ink); }
+[data-tone="green"]  { --tone: var(--green-soft);  --tone-ink: var(--green-ink); }
+[data-tone="red"]    { --tone: var(--red-soft);    --tone-ink: var(--red-ink); }
+[data-tone="grape"]  { --tone: var(--play-grape);  --tone-ink: var(--blue-ink); }
+[data-tone="ink"]    { --tone: var(--ink);         --tone-ink: var(--paper); }
+
+/* ─── Hero band: full-bleed solid tone, white (or ink on yellow) title + lead on the
+   1100px content column, the pen-tool icon as ghost art ─── */
+.hero { position: relative; overflow: hidden; width: 100%; background: var(--tone); color: var(--tone-ink); }
+.hero-ghost {
+  position: absolute; right: max(-40px, calc(50% - 770px)); top: 50%;
+  width: 220px; height: 220px; transform: translateY(-50%) rotate(-8deg);
+  color: color-mix(in srgb, var(--tone-ink) 18%, transparent); pointer-events: none;
+}
+/* the sheet bands carry one short line, so their ghost can sit inside the column */
+.hero.compact .hero-ghost { right: max(30px, calc(50% - 520px)); }
+.page-header { position: relative; max-width: 1100px; margin: 0 auto; padding: 44px 30px 46px; text-align: left; }
+.app-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.3rem, 5vw, 3.3rem); letter-spacing: -.025em; line-height: 1.05; color: inherit; margin: 0 0 14px; }
+.edu-lead { font-family: var(--font-sans); font-size: 1.15rem; line-height: 1.6; color: inherit; margin: 0; }
+/* compact band on a sheet: title + one line, so the drawings stay above the fold */
+.hero.compact .page-header { padding: 22px 30px 24px; }
+.hero.compact .app-title { font-size: clamp(1.8rem, 3.6vw, 2.4rem); margin-bottom: 6px; }
+.hero.compact .edu-lead { font-size: 1.05rem; }
+.hero.compact .hero-ghost { width: 150px; height: 150px; }
+
+/* the work area sits on a full-bleed stone band, so white cards read as cards */
+.work-band { width: 100%; background: var(--paper-2); border-bottom: 1px solid var(--line); flex: 1 0 auto; }
 
 .sr-only { position: absolute; left: -9999px; }
 
@@ -45,4 +73,8 @@ a.edu-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .edu-logo { width: 48px; height: 48px; }
   .edu-wordmark { font-size: 18px; }
   .edu-btn { padding: 8px 14px; font-size: 14px; }
+  .page-header, .hero.compact .page-header { padding: 28px 16px 30px; }
+  .hero.compact .page-header { padding-top: 18px; padding-bottom: 20px; }
+  .hero-ghost, .hero.compact .hero-ghost { width: 110px; height: 110px; right: -24px; top: auto; bottom: -26px; transform: rotate(-8deg); }
+  .hero:not(.compact) .hero-ghost { display: none; }   /* a long lead fills the band: no room for art */
 }

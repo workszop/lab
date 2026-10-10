@@ -7,7 +7,9 @@ body { display: flex; flex-direction: column; align-items: center; min-height: 1
 .edu-header { position: sticky; top: 0; display: none; }
 body.standalone .edu-header { display: block; }
 
-main { width: 100%; max-width: 1100px; padding: 22px 30px 70px; display: flex; flex-direction: column; align-items: center; }
+main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 28px 30px 70px; display: flex; flex-direction: column; align-items: center; }
+/* the sheet's colour band, like the brand bar, belongs to the standalone page only */
+body:not(.standalone) .hero { display: none; }
 
 /* the pen settings: a toggle in the top bar, and a panel that folds out above the sheet */
 .controls-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 0 0 14px; max-width: 860px; width: 100%; }
@@ -22,8 +24,8 @@ button.toggle[aria-expanded="true"] { background: var(--paper-2); color: var(--i
 }
 .ctl { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
 .ctl input[type=range] { width: 110px; -webkit-appearance: none; appearance: none; height: 8px; background: var(--track); border-radius: var(--r-pill); }
-.ctl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--surface); border: 2px solid var(--ink); border-radius: 50%; cursor: pointer; box-shadow: var(--shadow-sm); }
-.ctl input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var(--surface); border: 2px solid var(--ink); border-radius: 50%; cursor: pointer; }
+.ctl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--yellow); border: 2px solid var(--ink); border-radius: 50%; cursor: pointer; box-shadow: var(--shadow-sm); }
+.ctl input[type=range]::-moz-range-thumb { width: 18px; height: 18px; background: var(--yellow); border: 2px solid var(--ink); border-radius: 50%; cursor: pointer; }
 .ctl input[type=range]:focus-visible, .ctl select:focus-visible { outline: 3px solid transparent; box-shadow: var(--focus-ring); }
 .ctl output { min-width: 3ch; color: var(--ink-3); font-size: 11px; }
 .ctl select { font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--r-pill); padding: 4px 10px; }
