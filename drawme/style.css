@@ -1,8 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
-
 /* ─── Tokens: the drawing palette (content – pen.js and genome.js read these via
    tok()/toks(), keep them exactly) followed by the edulab design tokens
-   (verbatim copy of edustyl/tokens/colors_and_type.css, @import hoisted above). ─── */
+   (verbatim copy of edustyl/tokens/colors_and_type.css; fonts load via <link> in index.html). ─── */
 :root {
   /* ── drawing paper & inks (--ink itself comes from the edulab block below) ── */
   --canvas: #FFFFFF;
@@ -20,7 +18,6 @@
 
   /* ── app aliases ── */
   --font-ui: var(--font-sans);
-  --paper-translucent: rgba(255, 255, 255, .85); /* header bar: paper (white) @ 85% */
 }
 
 /* ============================================================
@@ -260,12 +257,11 @@ body.dev h2 { font-family: var(--font-mono); font-size: 0.8rem; margin: 28px 0 1
 html, body { margin: 0; padding: 0; }
 body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-sans); min-height: 100vh; }
 
-/* ─── Branded top menu: ink horse mark + "edulab" wordmark, sticky + blurred ─── */
+/* ─── Branded top menu: ink horse mark + "edulab" wordmark, sticky + solid ─── */
 .edu-header {
   position: sticky; top: 0; z-index: 50; width: 100%;
-  background: var(--paper-translucent);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-2);
 }
 /* the app is a wide three-column workbench, so the header row shares #app's
    1420px cap rather than the 1100px content shell; paddings match the recipe */
@@ -287,14 +283,16 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   margin-right: 4px; padding-right: 14px; border-right: 1px solid var(--line-2);
 }
 
-/* ─── Page header: centred solid-ink display title + full-width lead ─── */
-.page-header { max-width: 1100px; margin: 0 auto; padding: 34px 30px 6px; text-align: center; }
+/* ─── Page header: left-aligned on the workbench column (same 1420px cap and
+   30px gutter as #app), solid-ink display title, full-width lead, rule under ─── */
+.page-header { max-width: 1420px; margin: 0 auto; padding: 36px 30px 28px; text-align: left;
+  border-bottom: 1px solid var(--line-2); }
 .app-title {
   font-family: var(--font-display); font-weight: 800;
-  font-size: clamp(2rem, 4.5vw, 2.85rem); letter-spacing: -0.025em;
-  line-height: 1.05; color: var(--ink); margin: 0 0 12px;
+  font-size: clamp(2.3rem, 5vw, 3.3rem); letter-spacing: -0.025em;
+  line-height: 1.05; color: var(--ink); margin: 0 0 14px;
 }
-.edu-lead { font-family: var(--font-sans); font-size: 1.0625rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
+.edu-lead { font-family: var(--font-sans); font-size: 1.15rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
 
 /* ─── Buttons: yellow primary with dark ink, neutral ghost ─── */
 .edu-btn {
@@ -305,12 +303,12 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 }
 .edu-btn:hover:not(:disabled) { background: var(--yellow-600); }
 .edu-btn:active:not(:disabled) { transform: scale(0.96); }
-.edu-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.edu-btn:focus-visible { outline: 3px solid transparent; outline-offset: 2px; box-shadow: var(--focus-ring); }
 .edu-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.edu-btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); }
+.edu-btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
 .edu-btn.ghost:hover:not(:disabled) { background: var(--paper-2); }
 /* the Manual toggle, pressed = manual mode on (AI judge off): a solid blue pill */
-.edu-btn.manual-toggle.is-on { background: var(--blue); color: var(--blue-ink); border-color: var(--blue); }
+.edu-btn.manual-toggle.is-on { background: var(--blue-soft); color: var(--blue-ink); border-color: var(--blue-soft); }
 .edu-btn.manual-toggle.is-on:hover:not(:disabled) { background: var(--blue-600); border-color: var(--blue-600); }
 
 #app {
@@ -320,12 +318,12 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   align-items: start;
   max-width: 1420px; /* sized so the 4x3 grid's bottom lands level with the settings (AI) panel's bottom */
   margin: 0 auto;
-  padding: 18px 30px 12px;
+  padding: 24px 30px 12px;
 }
 
 .panel {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-2);
   border-radius: var(--r-lg);
   padding: 16px;
   box-shadow: var(--shadow-sm);
@@ -345,11 +343,19 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   text-transform: uppercase;
   color: var(--ink);
 }
+/* card anatomy: a panel that opens with its label gets a full-width stone head strip
+   (the grid panel has no label and stays one zone) */
+.panel > h2:first-child {
+  margin: -16px -16px 14px; padding: 12px 16px;
+  background: var(--paper-2); border-bottom: 1px solid var(--line);
+  border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
+}
+.done-panel > h2:first-child { align-self: stretch; margin-bottom: 0; }
 
 .col-left { display: flex; flex-direction: column; gap: 14px; }
 
 .dropzone {
-  border: 2px dashed var(--line-2);
+  border: 2px dashed var(--line-strong);
   border-radius: var(--r-md);
   padding: 18px;
   text-align: center;
@@ -358,10 +364,10 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   font-size: 0.85rem;
   transition: border-color 0.15s, background-color 0.15s;
 }
-.dropzone:hover, .dropzone.drag-over { border-color: var(--blue); background: var(--paper-2); }
-.dropzone:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.dropzone:hover, .dropzone.drag-over { border-color: var(--blue-600); background: var(--paper-2); }
+.dropzone:focus-visible { outline: 3px solid transparent; box-shadow: var(--focus-ring); }
 .dropzone input[type="file"] { display: none; }
-.dropzone-error { color: var(--red); font-size: 0.8rem; margin-top: 8px; }
+.edu .dropzone-error { color: var(--red-600); font-size: 0.8rem; margin-top: 8px; }
 
 .photo-preview { margin-top: 12px; }
 .photo-preview img { display: block; width: 100%; height: auto; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--paper-2); }
@@ -369,28 +375,28 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 .settings-panel { transition: border-color 0.2s, box-shadow 0.2s; }
 .settings-panel.is-highlighted { border-color: var(--yellow); box-shadow: var(--focus-ring); }
 .settings-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-.settings-row label { font-size: 0.76rem; color: var(--ink-2); font-weight: 600; }
+.settings-row label { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink); }
 .settings-row select, .settings-row input {
   font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink);
   background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--r-sm);
   padding: 7px 9px;
 }
-.settings-row select:focus-visible, .settings-row input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.settings-note { color: var(--ink-3); font-size: 0.76rem; line-height: 1.5; margin: 8px 0 0; }
-.settings-error { color: var(--red); font-size: 0.8rem; margin: 8px 0 0; }
+.settings-row select:focus-visible, .settings-row input:focus-visible { outline: 3px solid transparent; box-shadow: var(--focus-ring); }
+.edu .settings-note { color: var(--ink-3); font-size: 0.76rem; line-height: 1.5; margin: 8px 0 0; }
+.edu .settings-error { color: var(--red-600); font-size: 0.8rem; margin: 8px 0 0; }
 /* Task 13: key-shape guard warning (non-blocking, under the key field) and the
    paste-time auto-heal status note – distinct tone from settings-error since
    neither blocks Start on its own. */
-.settings-key-warning { color: var(--red); font-size: 0.76rem; margin: 6px 0 0; }
-.settings-key-note { color: var(--ink-2); font-size: 0.76rem; margin: 6px 0 0; }
+.edu .settings-key-warning { color: var(--red-600); font-size: 0.76rem; margin: 6px 0 0; }
+.edu .settings-key-note { color: var(--ink-2); font-size: 0.76rem; margin: 6px 0 0; }
 
 /* model discovery + "Get a key" link (Task 9) */
 .settings-key-link {
-  align-self: flex-start; font-size: 0.76rem; color: var(--blue);
+  align-self: flex-start; font-size: 0.76rem; color: var(--blue-600);
   text-decoration: none; margin-top: 2px;
 }
 .settings-key-link:hover { text-decoration: underline; }
-.settings-key-link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.settings-key-link:focus-visible { outline: 3px solid transparent; box-shadow: var(--focus-ring); }
 
 /* sr-only: visually hidden but still reachable by assistive tech (the standard
    clip-based technique) – used for the #live-announcer aria-live region so its text
@@ -448,18 +454,19 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
+#grid > p { grid-column: 1 / -1; margin: 0; }   /* the empty-grid message spans the row */
 .cell {
   position: relative;
   background: var(--surface);
-  border: 2px solid var(--line);
+  border: 2px solid var(--line-strong);
   border-radius: var(--r-md);
   padding: 6px;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
   animation: cell-fade-in 0.25s ease-out;
 }
-.cell:hover { border-color: var(--blue); }
-.cell:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.cell:hover { border-color: var(--blue-600); }
+.cell:focus-visible { outline: 3px solid transparent; box-shadow: var(--focus-ring); }
 .cell canvas { display: block; width: 100%; height: auto; background: var(--canvas); border-radius: var(--r-xs); }
 .cell .cell-badge {
   position: absolute; top: 10px; left: 10px;
@@ -477,13 +484,13 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   border-radius: var(--r-pill); padding: 4px 7px; border: none;
 }
 .cell.is-wild { border-style: dashed; }
-.cell.is-wild:hover { border-color: var(--blue); }
+.cell.is-wild:hover { border-color: var(--blue-600); }
 
 /* locked panel: once a winner stands, the other cells stop looking clickable until
    the next step's panel appears (picking is ignored in onCellPick anyway) */
 .cell.is-locked { cursor: default; opacity: 0.55; }
-.cell.is-locked:hover { border-color: var(--line); }
-.cell.is-wild.is-locked:hover { border-color: var(--line); }
+.cell.is-locked:hover { border-color: var(--line-strong); }
+.cell.is-wild.is-locked:hover { border-color: var(--line-strong); }
 
 /* winner highlight (Task 7): a full 3px yellow ring (2px border + 1px shadow ring)
    plus an opacity fade, not a shape/position change – a new .is-winner cell is a
@@ -568,7 +575,7 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   .header-controls { margin-left: 0; width: 100%; }
   .header-controls-inner { width: 100%; justify-content: flex-start; }
   .progress-bar { max-width: none; }
-  .page-header { padding: 24px 14px 4px; }
+  .page-header { padding: 24px 14px 24px; }
   #app {
     grid-template-columns: 1fr;
     padding: 12px 14px 8px;

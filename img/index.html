@@ -11,11 +11,8 @@
         /* ─── edulab tokens (verbatim copy of edustyl/tokens/colors_and_type.css) ─── */
         /* ============================================================
            edulab — Colors & Type foundation
-           Fonts loaded from Google Fonts (CDN). See README "Visual
-           Foundations" for substitution notes.
+           Fonts load from Google Fonts via the <link> tags above.
            ============================================================ */
-
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
 
         :root {
           /* ---- Brand fonts ---- */
@@ -207,9 +204,8 @@
            ============================================================ */
         .edu-header {
             position: sticky; top: 0; z-index: 50; width: 100%;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--line);
+            background: var(--paper);
+            border-bottom: 1px solid var(--line-2);
         }
         .edu-header-inner {
             max-width: 1100px; margin: 0 auto;
@@ -231,25 +227,27 @@
            Page header (solid-ink display title → full-width lead)
            ============================================================ */
         header.page-head {
-            text-align: center;
-            margin-bottom: 3rem;
+            text-align: left;
+            padding: 10px 0 36px;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--line-2);
             position: relative;
         }
 
         h1.app-title {
             font-family: var(--font-display);
             font-weight: 800;
-            font-size: clamp(2rem, 4.5vw, 2.85rem);
+            font-size: clamp(2.3rem, 5vw, 3.3rem);
             line-height: 1.05;
             letter-spacing: -.025em;
             color: var(--ink);
-            margin-bottom: 0.75rem;
+            margin-bottom: 14px;
         }
 
         .edu-lead {
             font-family: var(--font-sans);
             color: var(--ink-2);
-            font-size: 1.0625rem;
+            font-size: 1.15rem;
             line-height: 1.6;
             margin: 0;
         }
@@ -263,7 +261,7 @@
            Upload Zone
            ============================================================ */
         .upload-zone {
-            border: 2px dashed var(--line-2);
+            border: 2px dashed var(--line-strong);
             border-radius: var(--r-xl);
             padding: 3rem;
             text-align: center;
@@ -320,7 +318,7 @@
         }
 
         .upload-status.error {
-            color: var(--red);
+            color: var(--red-600);
         }
 
         /* ============================================================
@@ -342,7 +340,7 @@
         .card {
             background: var(--surface);
             border-radius: var(--r-lg);
-            border: 1px solid var(--line);
+            border: 1px solid var(--line-2);
             overflow: hidden;
             box-shadow: var(--shadow-sm);
             transition: box-shadow .2s ease;
@@ -544,7 +542,7 @@
         }
 
         .pixel-hex {
-            color: var(--blue);
+            color: var(--blue-600);
         }
 
         .pixel-binary {
@@ -572,10 +570,11 @@
 
         .control-group label {
             font-family: var(--font-mono);
-            font-size: 0.72rem;
+            font-size: 12px;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--ink-3);
+            letter-spacing: .1em;
+            color: var(--ink);
         }
 
         .control-group > span {
@@ -588,7 +587,7 @@
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(33, 30, 26, 0.12);
+            background: var(--track);
             height: 8px;
             border-radius: var(--r-pill);
         }
@@ -614,13 +613,13 @@
         }
 
         input[type="range"]:focus-visible {
-            outline: none;
+            outline: 3px solid transparent;
             box-shadow: var(--focus-ring);
         }
 
         .btn {
             background: var(--surface);
-            border: 1px solid var(--line-2);
+            border: 1px solid var(--line-strong);
             color: var(--ink);
             padding: 0.5rem 1rem;
             border-radius: var(--r-pill);
@@ -636,7 +635,7 @@
         }
 
         .btn:focus-visible {
-            outline: none;
+            outline: 3px solid transparent;
             box-shadow: var(--focus-ring);
         }
 
@@ -749,13 +748,16 @@
         /* ============================================================
            Responsive
            ============================================================ */
+        @media (max-width: 768px) {
+            .edu-header-inner { padding: 8px 16px; }
+            .container { padding: 28px 16px 50px; }
+            header.page-head { padding: 0 0 32px; }
+            .upload-zone { padding: 2rem 1.25rem; }
+        }
+
         @media (max-width: 900px) {
             .explorer-grid {
                 grid-template-columns: 1fr;
-            }
-
-            h1.app-title {
-                font-size: 2rem;
             }
 
             .metadata-grid {

@@ -1,10 +1,8 @@
 /* ============================================================
    edulab — Colors & Type foundation
-   Fonts loaded from Google Fonts (CDN). See README "Visual
-   Foundations" for substitution notes.
+   Fonts load from Google Fonts via the <link> tags in each page's
+   <head> (no @import: it chains requests and blocks rendering).
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
 
 :root {
   /* ---- Brand fonts ---- */

@@ -13,14 +13,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="MyApp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
 <style>
 /* ============================================================
    edulab — Colors & Type foundation
-   Fonts loaded from Google Fonts (CDN). See README "Visual
-   Foundations" for substitution notes.
+   Fonts load from Google Fonts via the <link> tags above.
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
 
 :root {
   /* ---- Brand fonts ---- */
@@ -139,14 +139,14 @@ body.edu {
   min-height: 100vh;
 }
 a { color: inherit; text-decoration: none; }
-a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+a:focus-visible, button:focus-visible { outline: 3px solid transparent; outline-offset: 2px; box-shadow: var(--focus-ring); }
+.edu-seg button:focus-visible { border-radius: var(--r-pill); }
 
 /* ─── Branded top menu ─── */
 .edu-header {
   position: sticky; top: 0; z-index: 50; width: 100%;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-2);
 }
 .edu-header-inner {
   max-width: 1100px; margin: 0 auto;
@@ -163,18 +163,23 @@ a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-r
 }
 .edu-seg button.active { background: var(--yellow); color: var(--yellow-ink); }
 
-/* ─── Layout shell ─── */
-main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
+/* ─── Layout shell: full-bleed bands, each with a capped .wrap ─── */
+main { margin: 0; padding: 0; }
+.sec { margin: 0; padding: 52px 0 60px; border-top: 1px solid var(--line); }
+.sec:nth-of-type(odd) { background: var(--paper-2); }
+.sec > .wrap { max-width: 1100px; margin: 0 auto; padding: 0 30px; }
 
 /* ─── Page header ─── */
-.page-header { text-align: center; padding: 42px 0 48px; }
+.page-header { max-width: 1100px; margin: 0 auto; padding: 44px 30px 36px; text-align: left;
+  border-bottom: 1px solid var(--line-2); }
+.page-header:has(+ .sec) { border-bottom: none; padding-bottom: 52px; }
 .app-title {
   font-family: var(--font-display); font-weight: 800;
-  font-size: clamp(2rem, 4.5vw, 2.85rem); letter-spacing: -.025em;
+  font-size: clamp(2.3rem, 5vw, 3.3rem); letter-spacing: -.025em;
   line-height: 1.05; color: var(--ink);
   margin: 0;
 }
-.edu-lead { font-size: 1.0625rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
+.edu-lead { font-size: 1.15rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
 
 /* ─── Type chip ─── */
 .edu-chip {
@@ -190,9 +195,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
 /* ─── Featured card ─── */
 .featured {
   display: grid; grid-template-columns: 1.1fr 1fr;
-  background: var(--surface); border-radius: var(--r-xl);
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-xl);
   box-shadow: var(--shadow-md); overflow: hidden;
-  margin-bottom: 56px;
 }
 .featured-visual {
   position: relative; display: flex; align-items: center; justify-content: center;
@@ -207,7 +211,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
   position: absolute; top: 20px; left: 22px;
   font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
   text-transform: uppercase; color: var(--ink);
-  background: rgba(255,255,255,.9); padding: 5px 12px; border-radius: var(--r-pill);
+  background: var(--paper); padding: 5px 12px; border-radius: var(--r-pill);
 }
 .featured-body { padding: 40px 42px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
 .featured-body h2 {
@@ -228,8 +232,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
 .edu-btn:active { transform: scale(.96); }
 .edu-meta { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; color: var(--ink-3); }
 
-/* ─── Section heading ─── */
-.section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 22px; }
+/* ─── Section heading: h2 + count + a rule to the right edge ─── */
+.section-head { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+.section-head::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
 .section-head h2 {
   font-family: var(--font-display); font-weight: 600; font-size: 25px;
   letter-spacing: -.01em; color: var(--ink);
@@ -239,14 +244,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
 /* ─── Demo card grid ─── */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .card {
-  background: var(--surface); border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm); overflow: hidden; display: block;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column;
   transition: all .2s cubic-bezier(.32,.72,.32,1); cursor: pointer;
 }
 .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
 .card-head {
-  position: relative; height: 128px; overflow: hidden;
+  position: relative; height: 128px; overflow: hidden; flex: none;
   display: flex; align-items: center; justify-content: center;
+  border-bottom: 1px solid var(--line);
 }
 .card-head .icon { width: 40px; height: 40px; color: var(--surface); }
 /* yellow heads carry dark ink, never white */
@@ -258,25 +264,26 @@ main { max-width: 1100px; margin: 0 auto; padding: 34px 30px 70px; }
   width: 140px; height: 140px; color: rgba(255,255,255,.16);
 }
 .card-head .edu-chip { position: absolute; top: 12px; left: 14px; }
-.card-body { padding: 16px 18px 18px; }
+.card-body { padding: 16px 18px 18px; flex: 1; }
 .card-body h3 {
   font-family: var(--font-display); font-weight: 600; font-size: 17px;
   color: var(--ink); margin-bottom: 6px;
 }
-.card-body p { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); margin-bottom: 10px; }
-.card-body .edu-meta { display: block; }
+.card-body p { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.card-foot { padding: 12px 18px; border-top: 1px dashed var(--line-2); }
+.card-foot .edu-meta { display: block; }
 
 /* ─── Footer ─── */
 footer {
   border-top: 1px solid var(--line);
-  margin-top: 70px; padding: 26px 30px;
+  padding: 26px 0;
 }
 .footer-inner {
-  max-width: 1100px; margin: 0 auto;
+  max-width: 1100px; margin: 0 auto; padding: 0 30px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
 }
-.footer-inner a { color: var(--blue); }
+.footer-inner a { color: var(--blue-600); }
 .footer-inner a:hover { text-decoration: underline; }
 
 /* ─── Responsive ─── */
@@ -285,7 +292,13 @@ footer {
   .featured { grid-template-columns: 1fr; }
   .featured-visual { min-height: 200px; }
   .featured-body { padding: 28px 26px; }
-  main { padding: 24px 20px 50px; }
+  .edu-header-inner { padding: 8px 16px; }
+  .page-header { padding: 28px 16px 32px; }
+  .page-header:has(+ .sec) { padding-bottom: 36px; }
+  .sec { padding: 36px 0 44px; }
+  .sec > .wrap { padding: 0 16px; }
+  footer { padding: 22px 0; }
+  .footer-inner { padding: 0 16px; }
 }
 @media (min-width: 769px) and (max-width: 1024px) {
   .grid { grid-template-columns: repeat(2, 1fr); }
@@ -310,6 +323,7 @@ footer {
     <h1 class="app-title" data-t="title"></h1>
   </header>
 
+  <section class="sec"><div class="wrap">
   <a class="featured" id="featured" href="">
     <div class="featured-visual" id="featuredVisual">
       <span class="featured-pill" data-t="featured"></span>
@@ -326,13 +340,16 @@ footer {
       </div>
     </div>
   </a>
+  </div></section>
 
+  <section class="sec"><div class="wrap">
   <div class="section-head">
     <h2 data-t="allApps"></h2>
     <span class="count" id="appCount"></span>
   </div>
 
   <div class="grid" id="grid" role="list"></div>
+  </div></section>
 </main>
 
 <footer>
@@ -474,9 +491,12 @@ function renderGrid() {
     head.append(chipEl(app.kind), iconEl('icon', app.icon), iconEl('ghost', app.icon));
 
     const body = el('div', 'card-body');
-    body.append(el('h3', '', app.title), el('p', '', tx(app.desc)), el('span', 'edu-meta', tx(app.meta)));
+    body.append(el('h3', '', app.title), el('p', '', tx(app.desc)));
 
-    card.append(head, body);
+    const foot = el('div', 'card-foot');
+    foot.append(el('span', 'edu-meta', tx(app.meta)));
+
+    card.append(head, body, foot);
     gridEl.appendChild(card);
   }
   appCountEl.textContent = t('count')(MODEL.apps.length + 1);
