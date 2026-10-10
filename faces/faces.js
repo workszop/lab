@@ -26,11 +26,12 @@ function hairCurtain(F, bottomK) {
   pts.push(...arcPts(cx, cy - ry * 0.05, wide * 0.98, ry * 1.06, Math.PI, Math.PI * 2, 0.03, 12));
   pts.push([cx + wide * 0.98, cy - ry * 0.15], [cx + wide, bottom]);
   for (let i = 1; i < 6; i++) pts.push([cx + wide - wide * 2 * i / 6, bottom + rf(-6, 8)]);
-  sketch(pts, { closed: true, fill: dark, fillColor: hairFill, wash: dark ? null : hairTint, wob: 1.6, width: 2.2 });
-  for (let i = 0, n = ri(4, 9); i < n; i++) {           // loose strands down the sides
+  sketch(pts, { closed: true, fill: dark, fillColor: hairFill, wash: dark ? null : hairTint, wob: 1.6, width: 2.2, role: 'silhouette' });
+  for (let i = 0, n = ri(4, 9); i < n; i++) {           // loose strands down the sides, falling with the hair
     const s = pick([-1, 1]), x0 = cx + s * rf(rx * 1.03, wide - 3);
-    line(x0, cy - ry * rf(0, 0.5), x0 + s * rf(-2, 6), bottom - rf(6, 24), { wob: 1.6, width: 1.3, color: dark ? pen.base : pen.ink });
+    line(x0, cy - ry * rf(0, 0.5), x0 + s * rf(-2, 6), bottom - rf(6, 24), { wob: 1.6, width: 1.3, color: dark ? pen.base : pen.ink, role: dark ? 'structure' : 'texture' });
   }
+  if (chance(0.5)) retrace(pts.slice(0, 2), { width: 2.2, wob: 1.6, span: 0.8 });   // where the hair meets the shoulder: gone over
 }
 
 /* a tapered hank of hair from (x0,y0) to (x1,y1), tied at the start */
@@ -42,11 +43,11 @@ function tail(F, x0, y0, x1, y1, w) {
     [x0 + dx * 0.5 + nx * w * 0.7, y0 + dy * 0.5 + ny * w * 0.7], [x1 + nx * w * 0.2, y1 + ny * w * 0.2],
     [x1 - nx * w * 0.3, y1 - ny * w * 0.3], [x0 + dx * 0.5 - nx * w * 0.6, y0 + dy * 0.5 - ny * w * 0.6]
   ];
-  sketch(pts, { closed: true, fill: dark, fillColor: hairFill, wash: dark ? null : hairTint, wob: 1.4, width: 2 });
+  sketch(pts, { closed: true, fill: dark, fillColor: hairFill, wash: dark ? null : hairTint, wob: 1.4, width: 2, role: 'silhouette' });
   for (let i = 0; i < 3; i++) {
     const t0 = rf(0.08, 0.3), t1 = rf(0.6, 0.95), off = rf(-w * 0.3, w * 0.3);
     line(x0 + dx * t0 + nx * off, y0 + dy * t0 + ny * off, x0 + dx * t1 + nx * off * 0.6, y0 + dy * t1 + ny * off * 0.6,
-         { wob: 1.4, width: 1.3, color: dark ? pen.base : pen.ink });
+         { wob: 1.4, width: 1.3, color: dark ? pen.base : pen.ink, role: dark ? 'structure' : 'texture' });
   }
   line(x0 + dx * 0.06 - nx * w * 0.55, y0 + dy * 0.06 - ny * w * 0.55,
        x0 + dx * 0.06 + nx * w * 0.55, y0 + dy * 0.06 + ny * w * 0.55, { width: 2.6, wob: 0.6 });
@@ -58,7 +59,7 @@ function braid(F, x0, y0, x1, y1) {
   const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
   const n = Math.max(4, Math.round(L / 9));
   const strip = [[x0 + nx * 7, y0 + ny * 7], [x1 + nx * 4, y1 + ny * 4], [x1 - nx * 4, y1 - ny * 4], [x0 - nx * 7, y0 - ny * 7]];
-  if (dark) sketch(strip, { closed: true, fill: true, fillColor: hairFill, wob: 1, width: 1.6 });
+  if (dark) sketch(strip, { closed: true, fill: true, fillColor: hairFill, wob: 1, width: 1.6, role: 'silhouette' });
   else {
     if (hairTint) washPts(strip, hairTint);
     line(x0 + nx * 7, y0 + ny * 7, x1 + nx * 4, y1 + ny * 4, { width: 1.6 });
@@ -72,18 +73,21 @@ function braid(F, x0, y0, x1, y1) {
 }
 
 /* hair on the forehead: yAt(t) gives the hairline for t in [-1,1] across the head */
-function fringe(F, yAt, filled, sweep = 0) {
-  const { cx, cy, hairFill, hairTint, rx, ry } = F;
+function fringe(F, yAt, filled, sweep = 0, origin) {
+  const { cx, cy, hairFill, hairTint, hairTop, rx, ry } = F;
+  /* the hair falls away from its parting (origin), leaning with the sweep */
+  const from = origin || [cx, cy - ry * 1.2];
+  const flow = field.blend(field.radial(from[0], from[1]), field.down(sweep), 0.35);
   clipHead(F, () => {
     const edge = [];
     for (let i = 0; i <= 8; i++) { const t = -1 + i / 4; edge.push([cx + t * rx * 1.25, yAt(t) + rf(-3, 3)]); }
-    if (filled && chance(0.35)) {               // scribbled dark hair: two directions of dense hatch
-      const closedEdge = [...edge, [cx + rx * 1.3, cy - ry * 1.6], [cx - rx * 1.3, cy - ry * 1.6]];
-      washPts(closedEdge, { color: hairFill, alpha: rf(0.25, 0.45), mode: 'flat', grow: 1 });
+    const mass = [...edge, [cx + rx * 1.3, cy - ry * 1.6], [cx - rx * 1.3, cy - ry * 1.6]];
+    if (filled && chance(0.35)) {               // scribbled dark hair: dense strokes with the fall of the hair, and a second layer across it
+      washPts(mass, { color: hairFill, alpha: rf(0.25, 0.45), mode: 'flat', grow: 1 });
       sketch(edge, { wob: 1.5, width: 2.2 });
-      const top = cy - ry * 1.05, bot = yAt(0) - 4, a1 = rf(0.5, 0.9), a2 = a1 + rf(1.2, 1.8);
-      hatch(cx - rx, top, cx + rx, bot, ri(24, 40), a1, 20);
-      hatch(cx - rx, top, cx + rx, bot, ri(18, 30), a2, 18);
+      const across = rf(0.5, 0.8);
+      hatchAlong(mass, ri(28, 44), 20, flow, { width: rf(1.4, 2.2), role: 'structure' });
+      hatchAlong(mass, ri(16, 26), 16, (x, y) => flow(x, y) + across, { width: rf(1, 1.6) });
     } else if (filled) {
       edge.push([cx + rx * 1.3, cy - ry * 1.6], [cx - rx * 1.3, cy - ry * 1.6]);
       sketch(edge, { closed: true, fill: true, fillColor: hairFill, wob: 1.5, width: 2 });
@@ -93,10 +97,11 @@ function fringe(F, yAt, filled, sweep = 0) {
           line(x, cy - ry * 0.95, x + rf(-4, 4), yAt(0) - rf(8, 16), { wob: 0.6, width: 1.4, color: pen.base });
         }
     } else {
-      if (hairTint) washPts([...edge, [cx + rx * 1.3, cy - ry * 1.6], [cx - rx * 1.3, cy - ry * 1.6]], hairTint);
+      if (hairTint) washPts(mass, hairTint);
       sketch(edge, { wob: 1.5, width: 2 });
-      hatch(cx - rx, cy - ry * 1.05, cx + rx, yAt(0) - 8, ri(14, 26), -Math.PI / 2 + sweep, 16);
+      hatchAlong(mass, ri(16, 28), 16, flow, { width: rf(1.2, 1.8) });
     }
+    if (chance(0.4)) retrace(edge, { width: 2, wob: 1.5, span: 0.5 });   // the hairline, where hair meets skin: gone over
   });
 }
 
@@ -112,11 +117,12 @@ function drawBow(F) {
 /* ----- back hair: drawn before the head, so the face covers it ----- */
 function faceBackHair(F) {
   const { cx, cy, dark, hairFill, hairTint, rx, ry, style } = F;
+  pen.phase('silhouette');
   if (style === 'long') hairCurtain(F, rf(1.1, 1.4));
   else if (style === 'bob') hairCurtain(F, rf(0.55, 0.85));
   else if (style === 'afro') {
     const fro = blobPts(cx, cy - ry * 0.2, rx * 1.38, ry * 1.3, 0.05, 22);
-    sketch(fro, { closed: true, fill: dark, fillColor: hairFill, wash: dark ? null : hairTint, wob: 2.2, width: 2.2 });
+    sketch(fro, { closed: true, fill: dark, fillColor: hairFill, wash: dark ? null : hairTint, wob: 2.2, width: 2.2, role: 'silhouette' });
     penStyle(1.6, dark ? pen.base : pen.ink);
     for (const [x, y] of fro.filter((_, i) => !dark || i % 2 === 0)) {   // curls along the rim
       const ix = x + (cx - x) * 0.06, iy = y + (cy - ry * 0.2 - y) * 0.06;
@@ -131,15 +137,22 @@ function faceBackHair(F) {
 
 /* ----- head (filled with paper so back hair stays behind it) ----- */
 function faceHead(F) {
-  const { head, skinWash } = F;
-  sketch(head, { closed: true, fill: true, fillColor: pen.base, wash: skinWash, wob: 1.2, width: rf(2.2, 3.4) });
-  if (chance(0.35)) sketch(head, { closed: true, wob: 2, width: rf(0.9, 1.5) });   // a second, searching line
+  const { cx, cy, head, quiet, rx, ry, shade, skinWash } = F;
+  pen.phase('silhouette');
+  pen.quiet = quiet;                             // texture stays off the features from here on
+  const width = rf(2.2, 3.4);
+  sketch(head, { closed: true, fill: true, fillColor: pen.base, wash: skinWash, wob: 1.2, width, role: 'silhouette' });
+  pen.phase('detail');
+  /* the shadow side: the pen goes over the jaw again, and now and then hatches along the cheek's turn */
+  if (chance(0.5)) retrace(head, { closed: true, width, wob: 1.2, span: 0.3, at: shade > 0 ? 0.12 : 0.42 });
+  if (chance(0.3)) formShade(head, cx, cy, rx, ry, shade, ri(8, 16), rx * 0.3);
 }
 
 /* ----- neck, shoulders, collar ----- */
 function faceNeck(F) {
   const { accent, cx, cy, isChild, isOld, masc, rough, rx, ry, soft, style } = F;
   const hairBelowChin = ['long', 'pigtails', 'braids'].includes(style);
+  pen.phase('silhouette');
   if (!hairBelowChin && chance(0.4)) {
     const chinY = cy + ry * 0.98, nW = rx * (isChild ? 0.25 : masc ? 0.38 : 0.3);
     const ny2 = chinY + ry * rf(0.12, 0.2), shW = rx * rf(1.15, 1.3);
@@ -147,7 +160,8 @@ function faceNeck(F) {
       line(cx + s * nW, chinY - 4, cx + s * nW, ny2, { width: 2 });
       sketch([[cx + s * nW, ny2], [cx + s * (nW + 10), ny2 + 4], [cx + s * shW, ny2 + 16]], { width: 2.2, wob: 1.2 });
     }
-    if (isOld && chance(0.6)) for (let i = 0; i < 2; i++) { const y = chinY + 6 + i * 7; line(cx - nW + 3, y, cx + nW - 3, y + rf(-1, 2), { width: 1.1, wob: 0.8 }); }
+    if (isOld && chance(0.6)) for (let i = 0; i < 2; i++) { const y = chinY + 6 + i * 7; line(cx - nW + 3, y, cx + nW - 3, y + rf(-1, 2), { width: 1.1, wob: 0.8, role: 'texture' }); }
+    pen.phase('accessories');
     const collar = wpick({ none: 1.5, vneck: 1, crew: 1, tie: isChild ? 0.1 : rough, bowtie: 0.5, necklace: 1.2 * soft });
     if (collar === 'vneck') for (const s of [-1, 1]) line(cx + s * (nW + 4), ny2, cx, ny2 + 18, { width: 2 });
     else if (collar === 'crew') arc(cx, ny2 - 2, nW + 4, 0.1, Math.PI - 0.1, { width: 2 });
@@ -168,14 +182,18 @@ function faceNeck(F) {
 /* ----- front hair & headwear ----- */
 function faceFrontHair(F) {
   const { accent, bangsLine, bow, cx, cy, dark, eyeY, flatLine, hairFill, hairTint, hairTop, hatWash, isOld, look, middlePart, partDir, rx, ry, sidePart, soft, style } = F;
+  pen.phase('silhouette');
+  /* where the hair parts: the origin its strands fall away from */
+  const partAt = new Map([[middlePart, [cx, hairTop - 4]], [sidePart, [cx - partDir * rx * 0.3, hairTop]]]);
+  const origin = yAt => partAt.get(yAt);
   if (style === 'bowl') fringe(F, flatLine, true);
   else if (style === 'bangs') fringe(F, bangsLine, dark);
-  else if (style === 'sidepart') fringe(F, sidePart, dark, partDir * 0.5);
-  else if (style === 'long' || style === 'bob') fringe(F, pick([middlePart, bangsLine, sidePart]), dark, chance(0.5) ? partDir * 0.4 : 0);
-  else if (style === 'ponytail' || style === 'braids') fringe(F, pick([middlePart, sidePart]), dark, partDir * 0.3);
-  else if (style === 'pigtails') fringe(F, pick([bangsLine, middlePart]), dark);
+  else if (style === 'sidepart') fringe(F, sidePart, dark, partDir * 0.5, origin(sidePart));
+  else if (style === 'long' || style === 'bob') { const l = pick([middlePart, bangsLine, sidePart]); fringe(F, l, dark, chance(0.5) ? partDir * 0.4 : 0, origin(l)); }
+  else if (style === 'ponytail' || style === 'braids') { const l = pick([middlePart, sidePart]); fringe(F, l, dark, partDir * 0.3, origin(l)); }
+  else if (style === 'pigtails') { const l = pick([bangsLine, middlePart]); fringe(F, l, dark, 0, origin(l)); }
   else if (style === 'bun') {
-    fringe(F, pick([middlePart, sidePart, flatLine]), dark);
+    { const l = pick([middlePart, sidePart, flatLine]); fringe(F, l, dark, 0, origin(l)); }
     const bx = cx + rf(-0.35, 0.35) * rx, by = cy - ry * 1.08, br = rx * rf(0.26, 0.36);
     sketch(blobPts(bx, by, br, br * 0.85, 0.1, 12), { closed: true, fill: true, fillColor: dark ? hairFill : pen.base, wash: dark ? null : hairTint, wob: 1.5, width: 2 });
     if (!dark) for (let i = 0; i < 4; i++) arc(bx + rf(-3, 3), by + rf(-3, 3), br * rf(0.3, 0.7), rf(0, 3), rf(3, 6), { width: 1.3 });
@@ -193,7 +211,7 @@ function faceFrontHair(F) {
       const l = rf(10, style === 'shaggy' ? 34 : 22);
       line(x, y, x + Math.cos(a + sweep) * l * 0.6, y + Math.sin(a) * l, { wob: 1, width: rf(1.2, 2) });
     }
-    if (style === 'shaggy') hatch(cx - rx * 0.8, cy - ry, cx + rx * 0.8, hairTop, ri(10, 20), rf(-0.4, 0.4) - Math.PI / 2, 16);
+    if (style === 'shaggy') hatch(cx - rx * 0.8, cy - ry, cx + rx * 0.8, hairTop, ri(10, 20), field.radial(cx, cy - ry * 0.2), 16);   // out from the crown
   }
   else if (style === 'curly') {
     const n = ri(12, 22);
@@ -248,7 +266,7 @@ function faceFrontHair(F) {
     const capY = Math.min(hairTop, eyeY - 26) - rf(0, 8);   // sit above the brows
     const crown = arcPts(cx, capY - ry * 0.25, rx * 1.08, ry * 0.55, Math.PI * 0.9, Math.PI * 2.1, 0.06, 14);
     crown.push([cx + rx * 1.15, capY + 4], [cx - rx * 1.15, capY + 4]);
-    sketch(crown, { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.4, width: 2.2 });
+    sketch(crown, { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.4, width: 2.2, role: 'silhouette' });
     stipple(cx, capY - ry * 0.3, rx * 0.85, ry * 0.32, ri(80, 160), 0.9);
     const dir = look >= 0 ? 1 : -1;             // brim toward gaze
     sketch([[cx + dir * rx * 0.2, capY + 3], [cx + dir * rx * 1.15, capY + rf(0, 6)], [cx + dir * rx * 0.9, capY + rf(10, 14)], [cx + dir * rx * 0.1, capY + 8]], { closed: true, fill: true, fillColor: pen.base, wash: hatWash && { ...hatWash, mode: 'flat' }, width: 2.2 });
@@ -257,9 +275,9 @@ function faceFrontHair(F) {
     const by = hairTop + rf(-4, 6);
     const dome = arcPts(cx, by - 6, rx * 1.02, ry * 0.72, Math.PI, Math.PI * 2, 0.05, 14);
     dome.push([cx + rx * 1.02, by], [cx - rx * 1.02, by]);
-    sketch(dome, { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.4, width: 2.2 });
+    sketch(dome, { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.4, width: 2.2, role: 'silhouette' });
     if (chance(0.5)) stipple(cx, by - ry * 0.35, rx * 0.8, ry * 0.3, ri(60, 120), 0.9);
-    else hatch(cx - rx * 0.8, by - ry * 0.65, cx + rx * 0.8, by - 4, ri(15, 30), rf(0.5, 1.1), 12);
+    else hatchAlong(dome, ri(15, 30), 12, field.contour(cx, by - 6, rx * 1.02, ry * 0.72));   // the knit follows the dome
     /* ribbed band */
     sketch([[cx - rx * 1.02, by], [cx + rx * 1.02, by]], { width: 2.4, wob: 1.6 });
     sketch([[cx - rx * 1.05, by + 14], [cx + rx * 1.05, by + 14]], { width: 2.4, wob: 1.6 });
@@ -277,7 +295,7 @@ function faceFrontHair(F) {
     const by = Math.min(hairTop, eyeY - 28) - rf(2, 8);   // brim clear of the brows
     const crown = arcPts(cx, by, rx * 0.95, ry * 0.78, Math.PI, Math.PI * 2, 0.04, 12);
     crown.push([cx + rx * 0.95, by + 2], [cx - rx * 0.95, by + 2]);
-    sketch(crown, { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.3, width: 2.2 });
+    sketch(crown, { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.3, width: 2.2, role: 'silhouette' });
     arc(cx, by - ry * 0.72, rx * 0.22, Math.PI * 0.15, Math.PI * 0.85, { width: 1.6 });   // pinch
     line(cx - rx * 0.95, by - 10, cx + rx * 0.95, by - 12, { width: 3 });                  // band
     sketch([[cx - rx * 1.5, by + rf(-4, 2)], [cx, by - 5], [cx + rx * 1.5, by + rf(-4, 2)], [cx, by + 9]], { closed: true, fill: true, fillColor: pen.base, wash: hatWash && { ...hatWash, mode: 'flat' }, wob: 1.4, width: 2.2 });
@@ -285,14 +303,14 @@ function faceFrontHair(F) {
   else if (style === 'beret') {
     if (chance(0.6)) fringe(F, flatLine, dark);
     const s = pick([-1, 1]), bx = cx + s * rx * 0.15, by = hairTop - ry * 0.38;
-    sketch(blobPts(bx, by, rx * 1.22, ry * 0.45, 0.07, 16), { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.5, width: 2.2 });
+    sketch(blobPts(bx, by, rx * 1.22, ry * 0.45, 0.07, 16), { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.5, width: 2.2, role: 'silhouette' });
     line(bx, by - ry * 0.44, bx + 2, by - ry * 0.44 - 8, { width: 2 });
   }
   else if (style === 'headscarf') {
     const outer = arcPts(cx, cy - ry * 0.05, rx * 1.22, ry * 1.22, Math.PI * 0.85, Math.PI * 2.15, 0.03, 16);
     const inner = [[cx + rx * 1.0, cy + ry * 0.35], [cx + rx * 0.97, cy - ry * 0.3], [cx + rx * 0.55, hairTop - 8], [cx, hairTop - 14],
                    [cx - rx * 0.55, hairTop - 8], [cx - rx * 0.97, cy - ry * 0.3], [cx - rx * 1.0, cy + ry * 0.35]];
-    sketch([...outer, ...inner], { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.4, width: 2.2 });
+    sketch([...outer, ...inner], { closed: true, fill: true, fillColor: pen.base, wash: hatWash, wob: 1.4, width: 2.2, role: 'silhouette' });
     if (chance(0.6)) for (let i = 0; i < 70; i++) {       // polka dots on the band
       const a = rf(Math.PI * 0.85, Math.PI * 2.15), d = rf(0, 1);
       const x = cx + Math.cos(a) * rx * 1.18 * d, y = cy - ry * 0.05 + Math.sin(a) * ry * 1.18 * d;
@@ -305,12 +323,14 @@ function faceFrontHair(F) {
     line(cx - 4, ky + 9, cx - 12, ky + 24, { width: 1.8 });
     line(cx + 4, ky + 9, cx + 12, ky + 24, { width: 1.8 });
   }
+  pen.phase('accessories');
   if (bow) drawBow(F);
 }
 
 /* ----- ears : little "C" marks on the cheeks ----- */
 function faceEars(F) {
   const { cx, cy, isChild, look, rx, ry, shift, skinWash, soft, style } = F;
+  pen.phase('detail');
   const earY = cy + ry * rf(-0.05, 0.12);
   const earR = isChild ? rf(6, 9) : rf(6, 11);
   const hideEars = ['long', 'bob', 'afro', 'headscarf'].includes(style) && chance(0.85);
@@ -339,6 +359,7 @@ function faceEars(F) {
       earPos[s] = [x, earY + earR];
     }
   }
+  pen.phase('accessories');
   if (soft > 0 && chance(0.45 * soft + 0.1)) {   // earrings
     const kind = wpick({ stud: 1, hoop: 1, drop: 1 });
     for (const [on, s] of [[leftEar, -1], [rightEar, 1]]) {
@@ -354,6 +375,7 @@ function faceEars(F) {
 /* ----- eyes ----- */
 function faceEyes(F) {
   const { exL, exR, expr, eyeY, isChild, isOld, look, soft } = F;
+  pen.phase('expression');
   let eyeKind = wpick({ ring: 3, big: isChild ? 3 : 1, dot: isOld ? 2 : 1, mix: 0.6 });
   if (expr === 'happy' && chance(0.45)) eyeKind = 'wink2';
   if (expr === 'surprised') eyeKind = 'big';
@@ -372,6 +394,7 @@ function faceEyes(F) {
     } else {
       r = (kind === 'big' ? rf(10, 16) : rf(5.5, 9)) * s * (isOld ? 0.85 : 1);
       arc(x, eyeY, r, 0, Math.PI * 2, { width: 1.8, wob: 0.9 });
+      if (chance(0.4)) arc(x, eyeY, r, Math.PI * 1.1, Math.PI * 1.9, { width: 1.1, wob: 1.5 });   // the upper lid firmed up: an expressive line, gone over
       const px = x + look * r * 0.35 + rf(-1, 1), py = eyeY + rf(-1, 2);
       dot(px, py, Math.max(1.6, r * (isChild ? rf(0.35, 0.5) : rf(0.22, 0.4))));
       if (isChild && kind === 'big' && chance(0.5)) dot(px - r * 0.15, py - r * 0.15, Math.max(0.8, r * 0.09), pen.base);  // sparkle
@@ -397,6 +420,7 @@ function faceEyes(F) {
 /* ----- eyebrows ----- */
 function faceBrows(F) {
   const { exL, exR, expr, eyeY, isChild, isOld, rough, soft } = F;
+  pen.phase('expression');
   let browKind = wpick({ none: isChild ? 2 : 1.2, arc: 3, thick: 0.4 + 2.2 * rough });
   if (expr === 'grumpy') browKind = 'angry';
   if (expr === 'surprised') browKind = 'raised';
@@ -417,6 +441,7 @@ function faceBrows(F) {
 /* ----- nose ----- */
 function faceNose(F) {
   const { cx, eyeY, isChild, isOld, look, rough, ry, shift, soft } = F;
+  pen.phase('expression');
   const noseKind = wpick({ hook: 3, button: isChild ? 3 : 0.3 + 1.5 * soft, straight: 1, big: isOld ? 1.5 * rough : 0 });
   const nx = cx + shift * 1.4, nTop = eyeY + rf(2, 8);
   const nLen = ry * (isChild ? rf(0.14, 0.24) : rf(0.22, 0.4)) * (noseKind === 'big' ? 1.2 : 1);
@@ -439,6 +464,8 @@ function faceNose(F) {
 /* ----- mouth & facial hair ----- */
 function faceMouth(F) {
   const { cx, cy, expr, isChild, isOld, nLen, nTop, rough, rx, ry, shift, soft } = F;
+  pen.phase('expression');
+  pen.quiet = null;                              // stubble and beards are the face: they may come close
   const mY = nTop + nLen + rf(12, 20) * (isChild ? 0.85 : 1);
   const mx = cx + shift;
   const mS = isChild ? 0.75 : 1;                 // mouth scale
@@ -503,7 +530,7 @@ function faceMouth(F) {
         sketch(arcPts(cx, cy, rx * 1.02, ry * 1.02, Math.PI * 0.1, Math.PI * 0.9, 0.04, 14), { wob: 2, width: 2 });
         hatch(cx - rx, top, cx + rx, cy + ry * 1.05, ri(60, 110), Math.PI / 2 + rf(-0.3, 0.3), 10);
       } else {
-        sketch([[cx - rx * 1.2, top], [cx + rx * 1.2, top], [cx + rx * 1.2, cy + ry * 1.5], [cx - rx * 1.2, cy + ry * 1.5]], { closed: true, fill: true, wob: 2, width: 2 });
+        sketch([[cx - rx * 1.2, top], [cx + rx * 1.2, top], [cx + rx * 1.2, cy + ry * 1.5], [cx - rx * 1.2, cy + ry * 1.5]], { closed: true, fill: true, wob: 2, width: 2, role: 'silhouette' });
         /* redraw the mouth on top of the beard in paper colour */
         line(mx - 8, mY + 2, mx + 8, mY + 2, { width: 2.4, wob: 0.6, color: pen.base });
       }
@@ -515,7 +542,8 @@ function faceMouth(F) {
 /* ----- age lines ----- */
 function faceAge(F) {
   const { age, beard, cx, cy, exL, exR, eyeY, hairTop, isOld, mY, mx, nLen, nTop, nx, rx, ry, shift } = F;
-  const fine = { width: 1.2, wob: 0.9 };
+  pen.phase('detail');
+  const fine = { width: 1.2, wob: 0.9, role: 'texture' };
   if (isOld) {
     if (chance(0.8)) for (let i = 0, n = ri(2, 4); i < n; i++) {      // forehead
       const y = hairTop + 8 + (eyeY - 24 - hairTop - 8) * (i + 0.5) / n, w = rx * rf(0.35, 0.55);
@@ -536,6 +564,7 @@ function faceAge(F) {
 /* ----- cheeks: freckles, blush ----- */
 function faceCheeks(F) {
   const { exL, exR, eyeY, isChild, mY, soft } = F;
+  pen.phase('detail');
   if (chance(isChild ? 0.35 : 0.12)) { stipple(exL - 6, mY - 14, 9, 6, ri(4, 8), 0.8); stipple(exR + 6, mY - 14, 9, 6, ri(4, 8), 0.8); }
   if ((isChild || soft > 0) && chance(0.45)) {
     const cyk = eyeY + (mY - eyeY) * 0.55;
@@ -552,6 +581,7 @@ function faceCheeks(F) {
 /* ----- eyewear (on top of everything) ----- */
 function faceEyewear(F) {
   const { cx, exL, exR, eyeY, gap, isChild, isOld, rx, shift, soft } = F;
+  pen.phase('accessories');
   const specs = wpick(isChild ? { none: 7, round: 1, square: 0.3 }
                     : isOld   ? { none: 2.5, round: 2, square: 1.2, halfmoon: 2, pince: 0.4, monocle: 0.4 }
                               : { none: 5, round: 1, square: 1, shades: 0.8, monocle: 0.25, pince: 0.25, cateye: soft });
@@ -595,29 +625,34 @@ function faceEyewear(F) {
 function drawFace(cx, cy, seed) {
   pen.seed(seed);
 
-  /* ----- who is this? ----- */
+  /* ----- who is this? (decisions are rolled in phases — silhouette, expression, palette,
+     accessories, detail — so the sheet can lock any of them while varying one face) ----- */
+  pen.phase('silhouette');
   const age = wpick({ child: 1.2, young: 2.5, adult: 3, old: 2 });
   const gender = wpick({ masc: 1, fem: 1, neutral: 0.35 });
   const isChild = age === 'child', isOld = age === 'old';
   const fem = gender === 'fem', masc = gender === 'masc';
   const soft = fem ? 1 : masc ? 0 : 0.5;        // feminine styling weight
   const rough = masc ? 1 : fem ? 0 : 0.5;       // masculine styling weight
+  pen.phase('expression');
   const expr = wpick({ neutral: 3, happy: 2.2, surprised: 0.7, sleepy: 0.7, grumpy: isChild ? 0.4 : 1, sly: 0.5 });
-  const dark = chance(isOld ? 0.2 : 0.55);       // ink-filled hair vs light/grey hatched hair
 
   /* ----- the pen and the marker box for this face ----- */
+  pen.phase('palette');
+  const dark = chance(isOld ? 0.2 : 0.55);       // ink-filled hair vs light/grey hatched hair
   pen.ink = pick(INKS);
   pen.w = rf(0.75, 1.45);                         // some faces are drawn with a fat nib, some fine
   const coloured = chance(0.62);
   const skin = coloured && chance(0.85) ? pick(SKINS) : null;
   const washMode = chance(0.32) ? 'scribble' : 'flat';
-  const skinWash = skin ? { color: skin, alpha: rf(0.5, 0.85), mode: washMode, grow: rf(0.94, 1.1) } : null;
+  const skinWash = skin ? { color: skin, alpha: rf(0.5, 0.85), mode: 'flat', grow: rf(0.94, 1.1) } : null;   // the face is washed flat: scribbles over a face read as messy pen lines
   const hairFill = pick(HAIR_DARK);              // ink-filled hair takes a near-black colour
   const hairTint = (coloured || chance(0.3)) && chance(0.7) ? { color: pick(HAIR_TINT), alpha: rf(0.4, 0.7), mode: washMode } : null;
   const hatWash = (coloured || chance(0.35)) ? { color: pick(HATS), alpha: rf(0.55, 0.85), mode: washMode } : null;
   const accent = { color: pick(ACCENTS), alpha: 0.8 };
 
   /* ----- geometry ----- */
+  pen.phase('silhouette');
   const rx = isChild ? rf(46, 60) : isOld ? rf(54, 74) : rf(56, 76);   // head half-width
   const ry = rx * (isChild ? rf(0.92, 1.1) : rf(1.0, 1.3));            // heads are a bit tall
   const tilt = rf(-0.09, 0.09);                // whole head leans
@@ -628,6 +663,7 @@ function drawFace(cx, cy, seed) {
   const gap = rx * (isChild ? rf(0.4, 0.52) : rf(0.34, 0.5));
   const exL = cx - gap + shift, exR = cx + gap + shift;
   const partDir = pick([-1, 1]);
+  const shade = pick([-1, 1]);                  // which side the light leaves (shadow side of the head)
 
   /* ----- hair style, weighted by persona ----- */
   function hairTable() {
@@ -650,6 +686,7 @@ function drawFace(cx, cy, seed) {
   }
   const style = wpick(hairTable());
   const hats = ['cap', 'beanie', 'fedora', 'beret', 'headscarf'];
+  pen.phase('accessories');
   const bow = !hats.includes(style) && !['bald', 'wisps', 'buzz', 'mohawk', 'band'].includes(style)
               && (isChild || soft > 0) && chance(0.12 + 0.12 * soft);
 
@@ -658,7 +695,10 @@ function drawFace(cx, cy, seed) {
   pen.ctx.rotate(tilt);
   pen.ctx.translate(-cx, -cy);
 
+  pen.phase('silhouette');
   const head = blobPts(cx, cy, rx, ry, rf(0.04, 0.09));
+  /* the quiet zone: eyes, nose and mouth — texture keeps out, so nothing competes with the expression */
+  const quiet = [[exL - 16, eyeY - 18], [exR + 16, eyeY - 18], [exR + 12, eyeY + ry * 0.55], [exL - 12, eyeY + ry * 0.55]];
 
   /* hairlines: yAt(t) gives the hair's edge on the forehead for t in [-1,1] across the head */
   const bangsY = eyeY - rf(16, 24);
@@ -667,7 +707,7 @@ function drawFace(cx, cy, seed) {
   const middlePart = t => hairTop + 12 * Math.abs(t);
   const sidePart   = t => hairTop + 7 + 9 * t * partDir;
 
-  const F = { cx, cy, seed, age, gender, isChild, isOld, fem, masc, soft, rough, expr, dark, skin, skinWash, hairFill, hairTint, hatWash, accent, rx, ry, look, shift, hairTop, eyeY, gap, exL, exR, partDir, style, hats, bow, head, flatLine, bangsLine, middlePart, sidePart };   // everything the parts need to know
+  const F = { cx, cy, seed, age, gender, isChild, isOld, fem, masc, soft, rough, expr, dark, skin, skinWash, hairFill, hairTint, hatWash, accent, rx, ry, look, shift, hairTop, eyeY, gap, exL, exR, partDir, shade, quiet, style, hats, bow, head, flatLine, bangsLine, middlePart, sidePart };   // everything the parts need to know
   faceBackHair(F);
   faceHead(F);
   faceNeck(F);
@@ -686,5 +726,6 @@ function drawFace(cx, cy, seed) {
 }
 
 
-Sheet.register('faces', { name: 'faces', H: 2420, draw: drawFace, census: ['age', 'gender'], zoom: 1.2 });
+Sheet.register('faces', { name: 'faces', H: 2420, draw: drawFace, census: ['age', 'gender'], zoom: 1.2,
+                          locks: ['silhouette', 'expression', 'palette', 'accessories'] });
 })();

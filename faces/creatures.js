@@ -21,17 +21,19 @@ const BODY_WEIGHTS = { blob: 2.4, tall: 1.8, pear: 1.6, imp: 1.5, longneck: 1.2,
 /* trace `pts` and run `fn` clipped inside them */
 function clipTo(pts, fn) { pen.ctx.save(); tracePath(wobblePts(pts, 1, true), true); pen.ctx.clip(); fn(); pen.ctx.restore(); }
 
-/* parallel hatching, clipped inside `pts` AND the box — the shaded side of a form */
-function shade(pts, x0, y0, x1, y1) {
-  pen.ctx.save();
-  tracePath(wobblePts(pts, 1, true), true); pen.ctx.clip();
-  pen.ctx.beginPath(); pen.ctx.rect(x0, y0, x1 - x0, y1 - y0); pen.ctx.clip();
-  const ang = rf(1.05, 1.4), step = rf(4.5, 6.5);
-  const ux = Math.cos(ang), uy = Math.sin(ang), px = -uy, py = ux;
-  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, diag = Math.hypot(x1 - x0, y1 - y0) / 2 + 4;
-  for (let d = -diag; d <= diag; d += step)
-    line(mx + px * d - ux * diag, my + py * d - uy * diag, mx + px * d + ux * diag, my + py * d + uy * diag, { width: rf(0.8, 1.1), wob: 0.9, taper: false });
-  pen.ctx.restore();
+/* where along a closed outline the point furthest to `side` sits (0..1), so a retrace can be
+   centred on the shadow flank; `axis` picks the coordinate (0 = x by default, 1 = y for a chin) */
+function edgeAt(pts, side, axis = 0) {
+  let best = 0, bestV = -Infinity;
+  pts.forEach((p, i) => { const v = p[axis] * side; if (v > bestV) { bestV = v; best = i; } });
+  return best / pts.length;
+}
+
+/* an arc as points, for the lines a hand may go over again */
+function arcP(cx, cy, r, a0, a1) {
+  const pts = [], steps = Math.max(4, Math.round(Math.abs(a1 - a0) * r / 8));
+  for (let i = 0; i <= steps; i++) { const a = a0 + (a1 - a0) * i / steps; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+  return pts;
 }
 
 /* a tall slab: domed top, straight sides, a flat seat on the ground */
@@ -82,15 +84,17 @@ function hairBits(hx, hy, hr, style, fall) {
     for (let i = 0; i < 6; i++) { const a = Math.PI * (1.1 + i * 0.16); arc(hx + Math.cos(a) * hr * 0.9, hy + Math.sin(a) * hr * 0.9, rf(4, 6), rf(0, 3), rf(4, 7), { width: 1.6, wob: 0.6 }); }
     return;
   }
-  if (style === 'messy') {
-    for (let i = 0, n = ri(10, 18); i < n; i++) { const a = Math.PI * rf(1.05, 1.95); const x = hx + Math.cos(a) * hr, y = hy + Math.sin(a) * hr; line(x, y, x + Math.cos(a) * rf(5, 12), y + Math.sin(a) * rf(5, 12), { width: rf(1.1, 1.8), wob: 0.8 }); }
+  if (style === 'messy') {                                  // strands out from the crown, radial
+    const out = field.radial(hx, hy + hr * 0.2);
+    for (let i = 0, n = ri(10, 18); i < n; i++) { const a = Math.PI * rf(1.05, 1.95); const x = hx + Math.cos(a) * hr, y = hy + Math.sin(a) * hr, b = out(x, y) + rf(-0.2, 0.2); line(x, y, x + Math.cos(b) * rf(5, 12), y + Math.sin(b) * rf(5, 12), { width: rf(1.6, 2.4), wob: 0.8, role: 'texture' }); }
     return;
   }
   const cap = arcPts(hx, hy, hr * 1.06, hr * 1.06, Math.PI * 0.95, Math.PI * 2.05, 0.04, 12);
   cap.push([hx + hr * 1.02, hy - hr * 0.1], [hx, hy - hr * 0.42], [hx - hr * 1.02, hy - hr * 0.1]);
-  sketch(cap, { closed: true, fill: true, width: 1.4, wob: 0.8 });
+  sketch(cap, { closed: true, fill: true, width: 1.4, wob: 0.8, role: 'silhouette' });
+  if (chance(0.4)) retrace(cap.slice(-3), { width: 1.4, wob: 0.8, span: 0.9 });   // the hairline, where hair meets skin
   if (fall > 0) for (const s of [-1, 1]) {
-    sketch([[hx + s * hr * 0.95, hy - hr * 0.15], [hx + s * hr * 1.25, hy + fall], [hx + s * hr * 0.62, hy + fall * 0.85], [hx + s * hr * 0.85, hy + hr * 0.3]], { closed: true, fill: true, width: 1.3, wob: 0.8 });
+    sketch([[hx + s * hr * 0.95, hy - hr * 0.15], [hx + s * hr * 1.25, hy + fall], [hx + s * hr * 0.62, hy + fall * 0.85], [hx + s * hr * 0.85, hy + hr * 0.3]], { closed: true, fill: true, width: 1.3, wob: 0.8, role: 'silhouette' });
     if (chance(0.5)) line(hx + s * hr * 1.05, hy + hr * 0.1, hx + s * hr * 1.05, hy + fall * 0.7, { width: 1, wob: 0.9, color: pen.base });   // a strand of light in the ink
   }
 }
@@ -98,28 +102,39 @@ function hairBits(hx, hy, hr, style, fall) {
 function drawCreature(cx, cy, seed) {
   pen.seed(seed);
 
-  /* ----- who is this? ----- */
-  const kind = wpick(BODY_WEIGHTS);
+  /* ----- who is this? (rolled in phases — silhouette, expression, palette, accessories,
+     detail — so the sheet can lock any of them while varying one creature; the body kind
+     comes off the sheet's deck when it dealt one) ----- */
+  pen.phase('silhouette');
+  const kind = pooled(BODY_WEIGHTS);
   const is = (...k) => k.includes(kind);
   const figure = is('human', 'skeleton', 'vampire', 'mermaid');   // a real head above a body
+  pen.phase('expression');
   const mood = wpick({ deadpan: is('reaper') ? 7 : 3.5, happy: 1.2,
                        mischief: is('imp', 'vampire', 'spider', 'skeleton') ? 2.6 : 1,
                        grumpy: 1.4, surprised: is('eyeball') ? 1.6 : 0.7, sleepy: is('reaper') ? 0.1 : 0.6 });
   const odd = is('human') ? wpick({ third: 1, brain: 1, ribs: 1, twohead: 0.8, blank: 0.7 }) : null;
 
   /* ----- the pen and the (mostly shut) marker box ----- */
+  pen.phase('palette');
   pen.ink = pick(INKS);
   pen.w = rf(0.9, 1.4);
   const washCol = is('dragon', 'hydra') && chance(0.7) ? FERN
                 : is('mermaid') && chance(0.6) ? SEA
                 : pick(ACCENTS);
   const wash = chance(is('dragon', 'hydra', 'mermaid') ? 0.5 : 0.32) ? { color: washCol, alpha: rf(0.3, 0.5), mode: chance(0.5) ? 'scribble' : 'flat', grow: rf(0.95, 1.05) } : null;
+  const sc = chance(0.3) ? pick(ACCENTS) : undefined;             // now and then the stripes go on in colour
+  const catEyeCol = chance(0.55) ? ACCENTS[0] : pen.base, collarCol = pick(ACCENTS);
+  const tailSea = chance(0.55) ? { color: SEA, alpha: rf(0.35, 0.55), grow: 1, mode: 'flat' } : null;
+  const flowerCol = chance(0.6) ? { color: pick([PINK, ACCENTS[0], ACCENTS[4]]), alpha: 0.6, grow: 1, mode: 'flat' } : null;
 
   /* ----- the rest of the corpse, rolled before any geometry ----- */
+  pen.phase('silhouette');
   const look = pick([-1, -0.5, 0, 0, 0.5, 1]);
   const SHADE = pick([-1, 1]);                                    // which side the light leaves
   const texture = is('giant') ? 'fur' : is('cat') ? 'plain' : is('spider') ? (chance(0.6) ? 'fur' : 'plain')
                 : is('blob', 'tall', 'pear', 'imp', 'longneck') ? wpick({ plain: 4, stipple: 0.9, fur: 0.5 }) : 'plain';
+  pen.phase('accessories');
   let dress = is('human') ? wpick({ none: 2, shirt: 2, stripes: 1, dots: 0.7 })
             : is('hydra') ? wpick({ none: 3, stripes: 0.7 })
             : is('longneck') ? wpick({ none: 3, stripes: 0.6 })
@@ -127,6 +142,7 @@ function drawCreature(cx, cy, seed) {
             : wpick({ none: 2.6, shirt: 1.4, stripes: 0.8, dots: 0.6 });
   if (odd === 'ribs') dress = 'none';                             // the coat hangs open instead
   const caped = is('vampire') && chance(0.3);                     // a cape all in ink now and then
+  pen.phase('silhouette');
   const gear = figure || is('reaper', 'hydra', 'spider', 'eyeball', 'dragon', 'cat') ? 'none'
              : wpick(is('blob') ? { none: 1.5, cat: 1, rabbit: 1, round: 0.8, horns: 1, antlers: 0.6, antenna: 0.8, curl: 0.6, sprout: 0.6 }
                    : is('tall') ? { none: 1.2, rabbit: 2, cat: 0.8, horns: 0.6, antenna: 0.6, curl: 0.4 }
@@ -134,34 +150,40 @@ function drawCreature(cx, cy, seed) {
                    : is('imp') ? { horns: 2.5, cat: 0.6, antenna: 0.5, none: 0.6 }
                    : is('longneck') ? { none: 3, horns: 0.4, antenna: 0.4 }
                    : { none: 2, round: 1.5, horns: 0.8 });
+  pen.phase('expression');
   let eyeKind = wpick({ ring: 3, dot: 1.2, big: 0.8, cyclops: is('imp') ? 0.8 : 0.35, flower: is('human') ? 0.8 : 0.22 });
   if (mood === 'surprised') eyeKind = eyeKind === 'cyclops' ? 'cyclops' : 'big';
   if (mood === 'sleepy') eyeKind = 'lids';
+  pen.phase('silhouette');
   const arms = is('longneck', 'giant', 'reaper', 'vampire', 'hydra', 'spider', 'dragon', 'cat') ? 'none'
              : is('eyeball') ? (chance(0.4) ? 'out' : 'none')
              : is('mermaid') ? pick(['down', 'out', 'up'])
              : wpick({ down: 2, out: 1.4, up: 0.8, none: 1 });
-  const held = arms !== 'none' && chance(0.2) ? wpick({ dagger: 1, flower: 0.7, head: 0.7 }) : null;
   const tail = is('imp') ? (chance(0.75) ? 'devil' : 'none')
              : is('blob') ? wpick({ none: 3, curl: 1, tuft: 0.6 })
              : is('tall') ? wpick({ none: 4, tuft: 0.6 }) : 'none';
   const wings = (is('blob', 'pear', 'imp') && chance(0.1)) || (is('vampire') && chance(0.3));
   const hair = is('human') ? wpick({ bob: 1.2, messy: 1, curls: 0.8, none: 1.2 })
              : is('mermaid') ? wpick({ bob: 2, curls: 0.6, none: 0.4 }) : 'none';
+  pen.phase('accessories');
+  const held = arms !== 'none' && chance(0.2) ? wpick({ dagger: 1, flower: 0.7, head: 0.7 }) : null;
   const extra = is('human') ? wpick({ none: 3, heart: 0.3, buttons: 1.1 })
               : figure || is('reaper', 'spider', 'eyeball', 'hydra', 'dragon', 'cat') ? 'none'
               : wpick({ none: 3, heart: 0.5, buttons: 0.9, patch: is('blob', 'giant') ? 0.9 : 0.3, stitch: is('imp', 'pear') ? 0.8 : 0.3 });
   /* a scary face now and then: hollowed, staring, mismatched or crossed-out eyes over a
      scream, a stitched mouth, or a grin with far too many teeth */
+  pen.phase('expression');
   const dread = chance(0.22);
   const dreadEye = wpick({ hollow: 1.2, stare: 1, mismatch: 0.8, crossed: 0.6 });
   const dreadMouth = wpick({ scream: 1, grin: 1.1, stitched: 0.9, plain: 0.5 });
   /* and a little ink gore, in the flash tradition */
+  pen.phase('detail');
   const gore = is('vampire') ? (chance(0.45) ? 'drip' : null)
              : is('blob', 'tall', 'pear', 'imp', 'giant', 'human') && chance(0.16)
              ? wpick({ drip: 1, axe: 1, wound: 1.2, bones: 0.8 }) : null;
 
   /* ----- geometry: the stack, centred in its cell ----- */
+  pen.phase('silhouette');
   const S = rf(1.0, 1.16);
   let body, topY, hem, bw, bh, bodY, fx, fy, fs = 1, legH = 0, legStyle = 'none';
   let hr = 0, hx = cx, hy = 0, neckY = 0;                        // the figures' head and neck
@@ -314,12 +336,19 @@ function drawCreature(cx, cy, seed) {
   const gearX = is('longneck') ? fx : cx;
   const gearY = is('longneck') ? fy - neck.r * 0.8 : topY + 4;
   const dab = wash && { ...wash, mode: 'flat', grow: 1 };
+  const myY = fy + rf(13, 18) * fs;                        // where the mouth will sit
+  /* the quiet zone: eyes, nose and mouth — washes, fur and shading keep out of it, so nothing
+     competes with the face (the eyeball IS its face, and the cat's is all ink: no zone there) */
+  const qw = 24 * fs + 8, quiet = is('eyeball', 'cat') ? null
+           : [[fx - qw, fy - 16 * fs - 6], [fx + qw, fy - 16 * fs - 6], [fx + qw, myY + 10], [fx - qw, myY + 10]];
+  pen.quiet = quiet;
 
   const tilt = rf(-0.05, 0.05);
   pen.ctx.save();
   pen.ctx.translate(cx, cy); pen.ctx.rotate(tilt); pen.ctx.translate(-cx, -cy);
 
   /* ----- behind the body: tail, wings, whatever grew on top ----- */
+  pen.phase('silhouette');
   if (tail === 'devil') {
     const d = look >= 0 ? -1 : 1, x0 = cx + d * bw * 0.5, y0 = hem - 6;
     sketch([[x0, y0], [x0 + d * rf(18, 28), y0 + rf(6, 14)], [x0 + d * rf(30, 42), y0 - rf(8, 20)]], { width: 2.2, wob: 1 });
@@ -337,33 +366,33 @@ function drawCreature(cx, cy, seed) {
   if (is('cat')) {                                          // the tail, a fat curling stroke
     const d = catP.d;
     if (catP.pose === 'sit')
-      sketch([[cx - d * bw * 0.8, hem - 8], [cx - d * (bw + rf(8, 14)), bodY + bh * rf(-0.1, 0.3)], [cx - d * (bw + rf(4, 12)), bodY - bh * rf(0.3, 0.55)]], { width: rf(4.2, 5.6), wob: 0.8 });
+      sketch([[cx - d * bw * 0.8, hem - 8], [cx - d * (bw + rf(8, 14)), bodY + bh * rf(-0.1, 0.3)], [cx - d * (bw + rf(4, 12)), bodY - bh * rf(0.3, 0.55)]], { width: rf(4.2, 5.6), wob: 0.8, role: 'silhouette' });
     else {
       const rx2 = cx - d * catP.aw * 0.45, ry2 = hem - catP.ah * 0.6;
-      sketch([[rx2, ry2], [rx2 - d * rf(6, 12), ry2 - rf(14, 20)], [rx2 - d * rf(0, 8), ry2 - rf(26, 36)]], { width: rf(4, 5.2), wob: 0.9 });
+      sketch([[rx2, ry2], [rx2 - d * rf(6, 12), ry2 - rf(14, 20)], [rx2 - d * rf(0, 8), ry2 - rf(26, 36)]], { width: rf(4, 5.2), wob: 0.9, role: 'silhouette' });
       for (let i = 0; i < 4; i++) { const ty2 = ry2 - 8 - i * 7; line(rx2 - d * (4 + i), ty2, rx2 - d * (12 + i), ty2 - 4, { width: 1.2, wob: 0.5 }); }   // bristled
     }
   }
   if (wings) for (const s of [-1, 1]) {
     const x0 = cx + s * bw * 0.8, y0 = bodY - bh * 0.25;
-    sketch([[x0, y0 + 8], [x0 + s * 16, y0 - 10], [x0 + s * 8, y0 + 2], [x0 + s * 20, y0 + 2], [x0 + s * 9, y0 + 8], [x0 + s * 16, y0 + 14]], { closed: true, fill: true, fillColor: pen.base, width: 1.8, wob: 0.8 });
-    line(x0 + s * 2, y0 + 6, x0 + s * 14, y0 - 6, { width: 1, wob: 0.6 });   // a strut in the membrane
+    sketch([[x0, y0 + 8], [x0 + s * 16, y0 - 10], [x0 + s * 8, y0 + 2], [x0 + s * 20, y0 + 2], [x0 + s * 9, y0 + 8], [x0 + s * 16, y0 + 14]], { closed: true, fill: true, fillColor: pen.base, width: 1.8, wob: 0.8, role: 'silhouette' });
+    line(x0 + s * 2, y0 + 6, x0 + s * 14, y0 - 6, { width: 1.4, wob: 0.6, role: 'texture' });   // a strut in the membrane
   }
   if (gear === 'cat') for (const s of [-1, 1]) {
-    sketch([[gearX + s * topW * 0.9, gearY + 6], [gearX + s * topW * rf(0.9, 1.15), gearY - rf(16, 24)], [gearX + s * topW * 0.35, gearY + 2]], { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 0.9 });
+    sketch([[gearX + s * topW * 0.9, gearY + 6], [gearX + s * topW * rf(0.9, 1.15), gearY - rf(16, 24)], [gearX + s * topW * 0.35, gearY + 2]], { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 0.9, role: 'silhouette' });
     sketch([[gearX + s * topW * 0.78, gearY + 3], [gearX + s * topW * rf(0.85, 1), gearY - rf(9, 14)], [gearX + s * topW * 0.5, gearY + 1]], { width: 1.1, wob: 0.7 });   // the inner ear
   }
   if (gear === 'rabbit') for (const s of [-1, 1]) {
     const eh = rf(34, 52), ex = gearX + s * topW * 0.45, bend = s * rf(-0.12, 0.3);
-    sketch(blobPts(ex + bend * eh, gearY - eh * 0.5, rf(7, 10), eh * 0.55, 0.06, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1 });
+    sketch(blobPts(ex + bend * eh, gearY - eh * 0.5, rf(7, 10), eh * 0.55, 0.06, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1, role: 'silhouette' });
     if (chance(0.7)) sketch(blobPts(ex + bend * eh, gearY - eh * 0.5, rf(2.5, 4), eh * 0.3, 0.1, 8), { closed: true, width: 1.2, wob: 0.8 });
   }
   if (gear === 'round') for (const s of [-1, 1])
-    sketch(blobPts(gearX + s * topW * 0.85, gearY - 6, rf(9, 13), rf(9, 13), 0.08, 10), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 0.9 });
+    sketch(blobPts(gearX + s * topW * 0.85, gearY - 6, rf(9, 13), rf(9, 13), 0.08, 10), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 0.9, role: 'silhouette' });
   if (gear === 'horns') for (const s of [-1, 1]) {
     const hx2 = gearX + s * topW * 0.6, hh = rf(12, 22) * fs * 2 * 0.5 + 8;
-    sketch([[hx2 - s * 5, gearY + 5], [hx2 + s * rf(4, 9), gearY - hh], [hx2 + s * 8, gearY + 6]], { closed: true, fill: chance(0.5), fillColor: pen.ink, width: 1.8, wob: 0.7 });
-    if (chance(0.5)) for (let i = 1; i < 3; i++) line(hx2 - s * 4 + s * i * 2, gearY + 5 - i * hh * 0.28, hx2 + s * 6, gearY + 4 - i * hh * 0.24, { width: 1, wob: 0.5 });   // growth rings
+    sketch([[hx2 - s * 5, gearY + 5], [hx2 + s * rf(4, 9), gearY - hh], [hx2 + s * 8, gearY + 6]], { closed: true, fill: chance(0.5), fillColor: pen.ink, width: 1.8, wob: 0.7, role: 'silhouette' });
+    if (chance(0.5)) for (let i = 1; i < 3; i++) line(hx2 - s * 4 + s * i * 2, gearY + 5 - i * hh * 0.28, hx2 + s * 6, gearY + 4 - i * hh * 0.24, { width: 1.4, wob: 0.5, role: 'texture' });   // growth rings
   }
   if (gear === 'antlers') for (const s of [-1, 1]) {
     const hx2 = gearX + s * topW * 0.5, hy2 = gearY + 2, hh = rf(22, 34);
@@ -393,37 +422,34 @@ function drawCreature(cx, cy, seed) {
 
   /* ----- the body ----- */
   const inkFill = caped || is('cat');
-  if (body) {
-    sketch(body, { closed: true, fill: true, fillColor: inkFill ? pen.ink : pen.base, wash: inkFill ? null : wash, wob: 1.2, width: rf(2.4, 3.4) });
-    if (!inkFill && chance(0.4)) sketch(body, { closed: true, wob: 2, width: rf(0.9, 1.4) });   // a second, searching line
-  }
+  const bodyW = rf(2.4, 3.4);
+  if (body) sketch(body, { closed: true, fill: true, fillColor: inkFill ? pen.ink : pen.base, wash: inkFill ? null : wash, wob: 1.2, width: bodyW, role: 'silhouette' });
+  pen.phase('detail');
+  /* the hand goes over the shadow flank of the body once more, not the whole outline */
+  if (body && !inkFill && chance(0.55)) retrace(body, { closed: true, width: bodyW, wob: 1.2, span: 0.3, at: edgeAt(body, SHADE) });
 
   /* ----- fur, stipple, clothes, the shaded side ----- */
-  const myY = fy + rf(13, 18) * fs;                        // where the mouth will sit: textures keep clear
-  if (texture === 'fur') clipTo(body, () => {
-    for (let y = topY + 8; y < hem - 4; y += rf(5.5, 7.5))
-      for (let x = cx - bw; x < cx + bw; x += rf(5.5, 8)) {
-        if (Math.abs(x - fx) < 26 * fs + 8 && y > fy - 16 * fs - 6 && y < myY + 10) continue;
-        if (chance(0.85)) line(x + rf(-2, 2), y + rf(-2, 2), x + rf(-2, 2), y + rf(4, 7), { width: rf(0.9, 1.3), wob: 0.6, taper: false });
-      }
-  });
+  if (texture === 'fur') {                                 // short ticks lying along the body's contour
+    const lie = field.blend(field.contour(cx, bodY, bw, bh), field.down(0), 0.35);
+    hatchAlong(body, Math.round(2 * bw * (hem - topY) / 46), 6, lie, { width: 1.7, wob: 0.6, curl: 0.2 });
+  }
   if (texture === 'stipple') clipTo(body, () => {
     for (let i = 0, n = ri(70, 140); i < n; i++) {
       const x = cx + rf(-bw, bw), y = rf(topY, hem);
-      if (Math.abs(x - fx) < 24 * fs + 6 && y > fy - 16 * fs - 4 && y < myY + 8) continue;
+      if (inQuiet(x, y)) continue;
       if ((x - cx) * SHADE < 0 && chance(0.55)) continue;  // the dots crowd the shaded side
-      dot(x, y, rf(0.6, 1.3));
+      dot(x, y, rf(0.6, 1.3), thinInk(pen.ink, 0.2));
     }
   });
   if (is('giant')) for (let i = 0, n = ri(22, 34); i < n; i++) {     // shaggy edge
     const a = pen.R() * Math.PI * 2;
     const x = cx + Math.cos(a) * bw, y = Math.min(bodY + Math.sin(a) * bh, hem);
-    line(x, y, x + Math.cos(a + rf(-0.4, 0.4)) * rf(6, 14), y + Math.sin(a + rf(-0.4, 0.4)) * rf(6, 14), { width: rf(1, 1.8), wob: 0.8 });
+    line(x, y, x + Math.cos(a + rf(-0.4, 0.4)) * rf(6, 14), y + Math.sin(a + rf(-0.4, 0.4)) * rf(6, 14), { width: rf(1.4, 2.4), wob: 0.8, role: 'texture' });
   }
+  pen.phase('accessories');
   const partFace = !figure && !is('hydra');                // stripes part around a face only when it sits on the body
   const shirtTop = is('human') ? neckY + 3 : is('imp') ? bodY - bh * 0.2 : Math.max(myY + 14, bodY - bh * 0.15);
   const shirtHem = is('human') ? hem - 3 : is('tall', 'pear') ? shirtTop + (hem - shirtTop) * rf(0.45, 0.6) : hem;
-  const sc = dress === 'none' ? undefined : chance(0.3) ? pick(ACCENTS) : undefined;   // now and then the stripes go on in colour
   if (dress === 'shirt' || dress === 'stripes') {
     const y0 = dress === 'shirt' ? shirtTop : is('human') ? neckY + 3 : topY + 4, y1 = dress === 'shirt' ? shirtHem : is('human') ? hem - 3 : hem;
     const vertical = dress === 'stripes' ? chance(0.6) : chance(0.35);
@@ -448,23 +474,25 @@ function drawCreature(cx, cy, seed) {
       sketch([[cx - bw - 6, shirtTop], [cx + bw + 6, shirtTop + rf(-3, 3)]], { width: 2, wob: 1.4 });
     });
   }
-  /* the plain forms take their shadow on one flank */
-  if (body && !inkFill && dress === 'none' && texture === 'plain' && !is('eyeball', 'skeleton') && chance(0.65)) {
-    const x0 = SHADE < 0 ? cx - bw - 6 : cx + bw * rf(0.35, 0.5);
-    shade(body, x0, is('human', 'mermaid', 'vampire') ? neckY : topY + 4, x0 + bw * rf(0.5, 0.65) + 6, hem - 2);
-  }
-  if (is('eyeball') && chance(0.7))                        // a sphere sits in its own shadow
-    shade(body, cx - bw - 4, bodY + bh * rf(0.4, 0.55), cx + bw + 4, hem + 2);
+  /* the plain forms take their shadow on one flank: hatching that turns with the form */
+  pen.phase('detail');
+  if (body && !inkFill && dress === 'none' && texture === 'plain' && !is('eyeball', 'skeleton') && chance(0.65))
+    formShade(body, cx, bodY, bw, bh, SHADE, ri(14, 26), bw * rf(0.28, 0.4));
+  if (is('eyeball') && chance(0.7))                        // a sphere sits in its own shadow, under the iris
+    hatchAlong(body.filter(([, y]) => y > bodY + bh * rf(0.4, 0.55)), ri(14, 22), bw * 0.35, field.contour(cx, bodY, bw, bh), { width: 1.6, curl: 0.5 });
 
   /* ----- the longneck's neck, head, plates and tail — or a dragon's ----- */
   if (is('longneck')) {
+    pen.phase('silhouette');
     const d = neck.d, x0 = cx + d * bw * 0.45, nw = rf(9, 12) * S;
     const inner = [[x0 - d * nw, bodY - bh * 0.4], [x0 - d * nw * 0.6, fy + neck.r * 0.4], [fx - d * neck.r * 0.6, fy]];
     const outer = [[fx + d * neck.r * 0.6, fy], [x0 + d * nw * 1.2, fy + neck.r * 0.6], [x0 + d * nw, bodY]];
-    sketch([...inner, ...outer], { fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1 });
-    sketch(blobPts(fx, fy, neck.r * rf(1.15, 1.35), neck.r, 0.06, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1 });
+    sketch([...inner, ...outer], { fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1, role: 'silhouette' });
+    sketch(blobPts(fx, fy, neck.r * rf(1.15, 1.35), neck.r, 0.06, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1, role: 'silhouette' });
     const tx = cx - d * bw * 0.95, ty = bodY + bh * 0.2;
-    sketch([[tx + d * 8, ty - 8], [tx - d * rf(16, 26), ty + rf(2, 10)], [tx + d * 6, ty + 8]], { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1 });
+    sketch([[tx + d * 8, ty - 8], [tx - d * rf(16, 26), ty + rf(2, 10)], [tx + d * 6, ty + 8]], { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1, role: 'silhouette' });
+    pen.phase('detail');
+    if (chance(0.5)) retrace(outer, { width: 2.4, wob: 1, span: 0.6 });   // where the neck meets the body
     clipTo(body, () => {                                    // belly plates
       for (let i = 0; i < 4; i++) { const y = hem - 6 - i * 7; sketch([[cx - bw * 0.8, y], [cx, y - 3], [cx + bw * 0.8, y]], { width: 1.1, wob: 0.8 }); }
     });
@@ -476,45 +504,54 @@ function drawCreature(cx, cy, seed) {
 
   /* ----- the dragon, in profile: tail, jaws, one cold eye, a raised wing ----- */
   if (is('dragon')) {
+    pen.phase('silhouette');
     const d = drg.d, r = drg.r;
     const tx0 = cx - d * bw * 0.85, ty0 = bodY - bh * 0.05;   // the tail, a taper to an arrowhead
     const tipx = tx0 - d * rf(28, 40), tipy = ty0 - rf(14, 26);
-    sketch([[tx0 + d * 8, ty0 - 8], [tx0 - d * 12, ty0 - 8 + rf(-4, 4)], [tipx, tipy], [tx0 - d * 10, ty0 + 4], [tx0 + d * 6, ty0 + 8]], { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1 });
+    sketch([[tx0 + d * 8, ty0 - 8], [tx0 - d * 12, ty0 - 8 + rf(-4, 4)], [tipx, tipy], [tx0 - d * 10, ty0 + 4], [tx0 + d * 6, ty0 + 8]], { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1, role: 'silhouette' });
     sketch([[tipx + d * 2, tipy - 7], [tipx - d * 8, tipy - 1], [tipx + d * 1, tipy + 6]], { closed: true, fill: true, width: 1.4, wob: 0.5 });
     const x0 = cx + d * bw * 0.5, nw = rf(10, 13) * S;        // the neck, leaning into the wind
-    sketch([[x0 - d * nw, bodY - bh * 0.4], [fx - d * r * 0.7, fy + r * 0.5], [fx + d * r * 0.3, fy + r * 0.6], [x0 + d * nw * 1.3, bodY]], { fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1 });
+    const neckPts = [[x0 - d * nw, bodY - bh * 0.4], [fx - d * r * 0.7, fy + r * 0.5], [fx + d * r * 0.3, fy + r * 0.6], [x0 + d * nw * 1.3, bodY]];
+    sketch(neckPts, { fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1, role: 'silhouette' });
+    if (chance(0.5)) retrace(neckPts.slice(2), { width: 2.4, wob: 1, span: 0.7 });   // the throat, where the neck meets the body
     for (let i = 0; i < 3; i++) {                             // spikes down the nape
       const t = 0.2 + i * 0.28;
       const sx3 = x0 - d * nw + (fx - d * r * 0.7 - x0 + d * nw) * t, sy3 = bodY - bh * 0.4 + (fy + r * 0.5 - bodY + bh * 0.4) * t;
       sketch([[sx3, sy3], [sx3 - d * rf(5, 8), sy3 - rf(3, 6)], [sx3 - d * 1, sy3 + 4]], { closed: true, fill: true, width: 1.1, wob: 0.5 });
     }
-    sketch(blobPts(fx, fy, r, r * 0.92, 0.05, 14), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1 });   // the skull
+    sketch(blobPts(fx, fy, r, r * 0.92, 0.05, 14), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.4, wob: 1, role: 'silhouette' });   // the skull
     const sn = r * rf(0.95, 1.2);                             // the upper jaw, blunt and toothed underneath
-    sketch([[fx + d * r * 0.25, fy - r * 0.6], [fx + d * (r * 0.35 + sn), fy - r * 0.28], [fx + d * (r * 0.35 + sn), fy + r * 0.12], [fx + d * (r * 0.25 + sn * 0.8), fy + r * 0.28], [fx + d * r * 0.05, fy + r * 0.3]], { closed: true, fill: true, fillColor: pen.base, width: 2, wob: 0.8 });
+    sketch([[fx + d * r * 0.25, fy - r * 0.6], [fx + d * (r * 0.35 + sn), fy - r * 0.28], [fx + d * (r * 0.35 + sn), fy + r * 0.12], [fx + d * (r * 0.25 + sn * 0.8), fy + r * 0.28], [fx + d * r * 0.05, fy + r * 0.3]], { closed: true, fill: true, fillColor: pen.base, width: 2, wob: 0.8, role: 'silhouette' });
     for (let i = 0; i < 3; i++) {
       const tx2 = fx + d * (r * 0.4 + sn * (0.22 + i * 0.26));
       sketch([[tx2 - 2.5, fy + r * 0.24], [tx2 + d * 1, fy + r * 0.24 + rf(5, 8)], [tx2 + 3, fy + r * 0.22]], { closed: true, fill: true, fillColor: pen.base, width: 1, wob: 0.3 });
     }
     if (chance(0.65)) sketch([[fx + d * r * 0.12, fy + r * 0.42], [fx + d * (r * 0.3 + sn * 0.8), fy + r * rf(0.85, 1.05)], [fx + d * r * 0.02, fy + r * 0.68]], { closed: true, fill: true, fillColor: pen.base, width: 1.8, wob: 0.7 });   // the jaw hangs open
     dot(fx + d * (r * 0.3 + sn * 0.8), fy - r * 0.02, 1.3);   // a nostril
+    for (let i = 0; i < 2; i++)                               // swept-back horns
+      sketch([[fx - d * (r * 0.1 + i * 6), fy - r * 0.75], [fx - d * (r * 1.05 + i * 9), fy - r * rf(1.15, 1.5)], [fx - d * (r * 0.45 + i * 6), fy - r * 0.42]], { closed: true, fill: true, width: 1.3, wob: 0.5, role: 'silhouette' });
+    pen.phase('expression');
     const ex2 = fx + d * r * 0.1, ey2 = fy - r * 0.18;        // one eye in profile, under a heavy brow
     arc(ex2, ey2, r * 0.3, 0, Math.PI * 2, { width: 1.6, wob: 0.7 });
     pen.ctx.save(); pen.ctx.translate(ex2, ey2); pen.ctx.scale(0.5, 1); dot(0, 0, Math.max(1.6, r * 0.17)); pen.ctx.restore();   // a slit pupil
-    line(ex2 - d * r * 0.35, ey2 - r * 0.42, ex2 + d * r * 0.4, ey2 - r * 0.3, { width: 2, wob: 0.6 });
-    for (let i = 0; i < 2; i++)                               // swept-back horns
-      sketch([[fx - d * (r * 0.1 + i * 6), fy - r * 0.75], [fx - d * (r * 1.05 + i * 9), fy - r * rf(1.15, 1.5)], [fx - d * (r * 0.45 + i * 6), fy - r * 0.42]], { closed: true, fill: true, width: 1.3, wob: 0.5 });
+    const brow = [[ex2 - d * r * 0.35, ey2 - r * 0.42], [ex2 + d * r * 0.4, ey2 - r * 0.3]];
+    sketch(brow, { width: 2, wob: 0.6 });
+    if (chance(0.5)) retrace(brow, { width: 2, wob: 0.6, span: 0.9 });   // the brow pressed down harder
+    pen.phase('detail');
     const mx2 = fx + d * (r * 0.3 + sn), my2 = fy + r * rf(0.25, 0.45);
     if (chance(0.55)) {                                       // fire, in three tongues and a spark
       for (let i = 0; i < 3; i++)
         sketch([[mx2, my2 + (i - 1) * 3], [mx2 + d * rf(10, 16), my2 + (i - 1) * 4 + rf(-4, 2)], [mx2 + d * rf(6, 9), my2 + (i - 1) * 3 + rf(1, 4)], [mx2 + d * rf(17, 26), my2 + (i - 1) * 5 + rf(-3, 3)]], { width: rf(1.3, 1.8), wob: 1, color: i === 1 ? ACCENTS[0] : FIRE });
       dot(mx2 + d * rf(24, 30), my2 + rf(-6, 6), 1.4, FIRE);
     } else for (let i = 0; i < 2; i++) arc(mx2 + d * (6 + i * 7), my2 - r * 0.5 - i * 8, rf(2.5, 4), 0, Math.PI * 1.5, { width: 1.1, wob: 0.6 });   // or smoke, curling
+    pen.phase('silhouette');
     const wx = cx + d * bw * 0.15, wy = bodY - bh * 0.7;      // the wing, raised, with membrane struts
     const apx = wx - d * rf(10, 20), apy = wy - rf(38, 52);
-    sketch([[wx, wy], [apx, apy], [wx - d * rf(28, 38), wy - rf(14, 22)], [wx - d * rf(44, 56), wy + rf(0, 8)], [wx - d * 12, wy + 8]], { closed: true, fill: true, fillColor: pen.base, width: 2, wob: 0.9 });
-    line(wx - d * 5, wy + 4, apx + d * 2, apy + 5, { width: 1, wob: 0.6 });
-    line(wx - d * 6, wy + 5, wx - d * 34, wy - 12, { width: 1, wob: 0.6 });
-    line(wx - d * 7, wy + 6, wx - d * 46, wy + 2, { width: 1, wob: 0.6 });
+    sketch([[wx, wy], [apx, apy], [wx - d * rf(28, 38), wy - rf(14, 22)], [wx - d * rf(44, 56), wy + rf(0, 8)], [wx - d * 12, wy + 8]], { closed: true, fill: true, fillColor: pen.base, width: 2, wob: 0.9, role: 'silhouette' });
+    pen.phase('detail');
+    line(wx - d * 5, wy + 4, apx + d * 2, apy + 5, { width: 1.5, wob: 0.6, role: 'texture' });
+    line(wx - d * 6, wy + 5, wx - d * 34, wy - 12, { width: 1.5, wob: 0.6, role: 'texture' });
+    line(wx - d * 7, wy + 6, wx - d * 46, wy + 2, { width: 1.5, wob: 0.6, role: 'texture' });
     for (let i = 0; i < 4; i++) {                             // spikes along the back
       const bx2 = cx - d * bw * 0.55 + d * i * bw * 0.3, by3 = bodY - bh * rf(0.88, 0.98);
       sketch([[bx2 - 4, by3 + 3], [bx2, by3 - rf(6, 10)], [bx2 + 4, by3 + 3]], { closed: true, fill: true, width: 1.2, wob: 0.5 });
@@ -522,43 +559,59 @@ function drawCreature(cx, cy, seed) {
     clipTo(body, () => {                                      // belly plates, and sometimes scales
       for (let i = 0; i < 4; i++) { const y = hem - 5 - i * 7; sketch([[cx - bw * 0.8, y], [cx, y - 3], [cx + bw * 0.8, y]], { width: 1.1, wob: 0.8 }); }
       if (chance(0.5)) { let k = 0; for (let y = bodY - bh * 0.6; y < hem - 14; y += 7, k++)
-        for (let x = cx - bw * 0.8; x < cx + bw * 0.8; x += 8) arc(x + (k % 2 ? 4 : 0), y, 3, Math.PI, Math.PI * 2, { width: 0.9, wob: 0.4, taper: false }); }
+        for (let x = cx - bw * 0.8; x < cx + bw * 0.8; x += 8) arc(x + (k % 2 ? 4 : 0), y, 3, Math.PI, Math.PI * 2, { width: 1.4, wob: 0.4, taper: false, role: 'texture' }); }
     });
   }
 
   /* ----- the figures: heads, hair, bones, capes, hoods, tails ----- */
+  pen.phase('silhouette');
   if (is('skeleton')) {
     for (let i = 0; i < 2; i++) line(cx - 3, neckY - 3 - i * 4, cx + 3, neckY - 3 - i * 4, { width: 1.4, wob: 0.5 });   // neck vertebrae
     ribCage(cx, neckY, hem - neckY - 10, bw);
     line(cx, hem - 10, cx, hem - 2, { width: 1.8, wob: 0.6 });
     sketch(blobPts(cx, hem - 3, bw * 0.55, 7, 0.1, 10), { closed: true, width: 1.8, wob: 0.8 });   // the pelvis
-    sketch(blobPts(hx, hy, hr * 1.02, hr, 0.05, 14), { closed: true, fill: true, fillColor: pen.base, width: rf(2.2, 3), wob: 1 });   // the skull
+    const skull = blobPts(hx, hy, hr * 1.02, hr, 0.05, 14);
+    sketch(skull, { closed: true, fill: true, fillColor: pen.base, width: rf(2.2, 3), wob: 1, role: 'silhouette' });   // the skull
+    pen.phase('detail');
+    if (chance(0.5)) retrace(skull, { closed: true, width: 2.6, wob: 1, span: 0.3, at: edgeAt(skull, SHADE) });   // its shadow side
     for (const s of [-1, 1]) line(hx + s * hr * 0.85, hy + hr * 0.25, hx + s * hr * 0.55, hy + hr * 0.5, { width: 1.2, wob: 0.6 });   // cheekbones
   }
   if (is('vampire')) {
     for (const s of [-1, 1])                                // the collar, points up beside the head
-      sketch([[hx + s * hr * 0.5, neckY + 2], [hx + s * bw * 0.85, neckY - hr * 0.9], [hx + s * bw * 0.55, neckY + 8]], { closed: true, fill: true, width: 1.8, wob: 0.8 });
-    if (!caped) clipTo(body, () => {                        // the cape falls in folds
+      sketch([[hx + s * hr * 0.5, neckY + 2], [hx + s * bw * 0.85, neckY - hr * 0.9], [hx + s * bw * 0.55, neckY + 8]], { closed: true, fill: true, width: 1.8, wob: 0.8, role: 'silhouette' });
+    pen.phase('detail');
+    if (!caped) clipTo(body, () => {                        // the cape falls in folds, straight down
       for (let i = 0, n = ri(2, 4); i < n; i++) {
         const x = cx + (i / (n - 1) * 2 - 1) * bw * 0.55 + rf(-3, 3);
-        sketch([[x, neckY + 14], [x + rf(-4, 4), bodY], [x + rf(-6, 6), hem - 4]], { width: rf(1, 1.4), wob: 1.1 });
+        sketch([[x, neckY + 14], [x + rf(-4, 4), bodY], [x + rf(-6, 6), hem - 4]], { width: rf(1.5, 2), wob: 1.1, role: 'texture' });
       }
+      if (chance(0.5)) hatchAlong(body, ri(8, 16), 14, field.down(look * 0.06), { width: 1.4, curl: 0.1 });   // the cloth's own shading
     });
-    sketch(blobPts(hx, hy, hr * rf(0.95, 1.08), hr, 0.05, 14), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: rf(2.2, 3), wob: 1.1 });
-    sketch([[hx - hr * 0.95, hy - hr * 0.25], [hx - hr * 0.8, hy - hr * 1.02], [hx + hr * 0.8, hy - hr * 1.02], [hx + hr * 0.95, hy - hr * 0.25], [hx, hy + hr * 0.05]], { closed: true, fill: true, width: 1.4, wob: 0.8 });   // widow's peak
+    pen.phase('silhouette');
+    const vhead = blobPts(hx, hy, hr * rf(0.95, 1.08), hr, 0.05, 14);
+    sketch(vhead, { closed: true, fill: true, fillColor: pen.base, wash: dab, width: rf(2.2, 3), wob: 1.1, role: 'silhouette' });
+    sketch([[hx - hr * 0.95, hy - hr * 0.25], [hx - hr * 0.8, hy - hr * 1.02], [hx + hr * 0.8, hy - hr * 1.02], [hx + hr * 0.95, hy - hr * 0.25], [hx, hy + hr * 0.05]], { closed: true, fill: true, width: 1.4, wob: 0.8, role: 'silhouette' });   // widow's peak
     if (chance(0.5)) for (const s of [-1, 1])               // pointed ears
       sketch([[hx + s * hr * 0.92, hy - hr * 0.1], [hx + s * hr * 1.3, hy - hr * 0.35], [hx + s * hr * 0.88, hy + hr * 0.25]], { closed: true, fill: true, fillColor: pen.base, width: 1.6, wob: 0.7 });
+    pen.phase('detail');
+    if (chance(0.5)) retrace(vhead, { closed: true, width: 2.6, wob: 1.1, span: 0.28, at: edgeAt(vhead, 1, 1) });   // under the chin
   }
   if (is('human', 'mermaid') && odd !== 'twohead') {
-    sketch(blobPts(hx, hy, hr * rf(0.95, 1.1), hr, 0.05, 14), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: rf(2.2, 3), wob: 1.1 });
+    pen.phase('silhouette');
+    const head = blobPts(hx, hy, hr * rf(0.95, 1.1), hr, 0.05, 14);
+    sketch(head, { closed: true, fill: true, fillColor: pen.base, wash: dab, width: rf(2.2, 3), wob: 1.1, role: 'silhouette' });
     hairBits(hx, hy, hr, hair === 'bob' ? 'bob' : hair, hair === 'bob' ? hr * (is('mermaid') ? rf(1.2, 2.1) : rf(0.5, 0.9)) : 0);
     for (const s of [-1, 1]) line(hx + s * 3, neckY - 6, hx + s * 3.5, neckY + 1, { width: 1.3, wob: 0.5 });   // the neck
+    pen.phase('detail');
+    if (chance(0.5)) retrace(head, { closed: true, width: 2.6, wob: 1.1, span: 0.28, at: edgeAt(head, 1, 1) });   // under the chin, where the head meets the neck
   }
+  pen.phase('accessories');
   if (is('human') && dress === 'none' && odd !== 'ribs' && chance(0.5))   // a neckline on the plain shirt
     for (const s of [-1, 1]) line(hx + s * 4, neckY + 1, hx, neckY + 9, { width: 1.4, wob: 0.6 });
+  pen.phase('expression');
   if (odd === 'twohead') for (const s of [-1, 1]) {         // two heads, one wary, one grim
     const r2 = hr * 0.82, x2 = hx + s * r2 * 0.95, y2 = topY + hr * 0.95;
-    sketch(blobPts(x2, y2, r2, r2 * 1.05, 0.05, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1 });
+    sketch(blobPts(x2, y2, r2, r2 * 1.05, 0.05, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2.2, wob: 1, role: 'silhouette' });
     if (chance(0.5)) hairBits(x2, y2, r2, 'messy', 0);
     dot(x2 - r2 * 0.3, y2, 1.8); dot(x2 + r2 * 0.3, y2, 1.8);
     for (const e of [-1, 1]) line(x2 + e * r2 * 0.3 - 3, y2 - 6, x2 + e * r2 * 0.3 + 3, y2 - 6 - e * s * 2, { width: 1.3, wob: 0.5 });   // brows
@@ -584,16 +637,23 @@ function drawCreature(cx, cy, seed) {
     ribCage(cx, neckY + 8, hem - neckY - 18, bw * 0.5);
   }
   if (is('reaper')) {
-    sketch(blobPts(fx, fy + 2, bw * 0.3, bw * 0.34, 0.06, 12), { closed: true, fill: true, width: 1.6, wob: 0.8 });   // the dark inside the hood
-    dot(fx - 5, fy, rf(1.9, 2.5), pen.base); dot(fx + 5, fy + rf(-1, 1), rf(1.7, 2.5), pen.base);
-    arc(fx, fy + 3, bw * 0.42, Math.PI * 0.92, Math.PI * 2.08, { width: 2, wob: 1 });   // the hood's rim
+    pen.phase('silhouette');
+    sketch(blobPts(fx, fy + 2, bw * 0.3, bw * 0.34, 0.06, 12), { closed: true, fill: true, width: 1.6, wob: 0.8, role: 'silhouette' });   // the dark inside the hood
+    const rim = arcP(fx, fy + 3, bw * 0.42, Math.PI * 0.92, Math.PI * 2.08);
+    sketch(rim, { width: 2, wob: 1, role: 'silhouette' });   // the hood's rim
     arc(fx, fy + 4, bw * 0.5, Math.PI * 1.05, Math.PI * 1.95, { width: 1.1, wob: 1 });  // and its folded edge
-    clipTo(body, () => {                                    // the robe falls in folds
+    pen.phase('expression');
+    dot(fx - 5, fy, rf(1.9, 2.5), pen.base); dot(fx + 5, fy + rf(-1, 1), rf(1.7, 2.5), pen.base);
+    pen.phase('detail');
+    if (chance(0.5)) retrace(rim, { width: 2, wob: 1, span: 0.4, at: SHADE > 0 ? 0.85 : 0.15 });   // the hood's edge on the shadow side
+    clipTo(body, () => {                                    // the robe falls in folds, straight down
       for (let i = 0, n = ri(2, 3); i < n; i++) {
         const x = cx + (n === 1 ? 0 : i / (n - 1) * 2 - 1) * bw * 0.45 + rf(-4, 4);
-        sketch([[x, fy + bw * 0.5], [x + rf(-5, 5), bodY + bh * 0.4], [x + rf(-7, 7), hem - 4]], { width: rf(1, 1.4), wob: 1.2 });
+        sketch([[x, fy + bw * 0.5], [x + rf(-5, 5), bodY + bh * 0.4], [x + rf(-7, 7), hem - 4]], { width: rf(1.5, 2), wob: 1.2, role: 'texture' });
       }
+      hatchAlong(body, ri(10, 20), 16, field.down(look * 0.06), { width: 1.4, curl: 0.1 });   // the cloth's own shading
     });
+    pen.phase('accessories');
     const d = look >= 0 ? 1 : -1, sx2 = cx + d * bw * 1.12, by2 = topY - rf(6, 16);
     line(sx2, by2, sx2 + d * 3, hem + rf(2, 10), { width: 2.6, wob: 0.8 });             // the scythe
     sketch([[sx2 + d * 2, by2 - 2], [sx2 - d * bw * rf(0.6, 0.75), by2 + 3], [sx2 - d * bw * 0.45, by2 + rf(13, 18)], [sx2 - d * 3, by2 + 6]], { closed: true, fill: true, width: 1.6, wob: 0.8 });
@@ -602,9 +662,12 @@ function drawCreature(cx, cy, seed) {
     for (let i = -1; i <= 1; i++) line(sx2 - d * 2, bodY - 4 + i * 2.5, sx2 + d * 4, bodY - 3 + i * 2.5, { width: 1.1, wob: 0.4 });   // bone fingers round the staff
   }
   if (is('mermaid')) {
+    pen.phase('silhouette');
     const d = mer.d, sway = mer.tailH * 0.45;
     /* the bust: bare with a dot, in the Venus manner — or cupped in scallop shells */
+    pen.phase('accessories');
     const shell = chance(0.45);
+    pen.phase('silhouette');
     for (const s of [-1, 1]) {
       const bx2 = cx + s * mer.bust * 1.02;
       sketch(blobPts(bx2, mer.bustY, mer.bust, mer.bust * 0.95, 0.06, 12), { closed: true, width: 1.6, wob: 0.8 });
@@ -622,35 +685,43 @@ function drawCreature(cx, cy, seed) {
       sketch([[xt, yt - 2], [xt + s * 11 + d * 7, yt + rf(10, 16)], [xt + s * 4 + d * 2, yt + 3]], { closed: true, fill: true, fillColor: pen.base, width: 1.8, wob: 0.8 });
       line(xt + s * 2 + d * 2, yt, xt + s * 8 + d * 5, yt + 9, { width: 0.9, wob: 0.5 });
     }
-    const tailTint = dab || (chance(0.55) ? { color: SEA, alpha: rf(0.35, 0.55), grow: 1, mode: 'flat' } : null);
-    sketch(tpts, { closed: true, fill: true, fillColor: pen.base, wash: tailTint, width: rf(2.2, 3), wob: 1.1 });
-    if (chance(0.85)) clipTo(tpts, () => {                  // scales
-      for (let y = hem + 5; y < yt - 3; y += 6.5)
-        for (let x = cx - hips - sway; x < cx + hips + sway; x += 8) arc(x + (y % 13 ? 4 : 0), y, 3.2, Math.PI, Math.PI * 2, { width: 1, wob: 0.4, taper: false });
-    });
-    shade(tpts, cx + (SHADE < 0 ? -hips - sway : 0) - 4, hem, cx + (SHADE < 0 ? 0 : hips + sway) + 4, yt + 2);
+    const tailTint = dab || tailSea;
+    sketch(tpts, { closed: true, fill: true, fillColor: pen.base, wash: tailTint, width: rf(2.2, 3), wob: 1.1, role: 'silhouette' });
     if (chance(0.4)) for (const s of [-1, 1])               // small fins at the hip
       sketch([[cx + s * hips * 0.98, hem + mer.tailH * 0.22], [cx + s * (hips + 9), hem + mer.tailH * 0.22 + rf(6, 12)], [cx + s * hips * 0.82, hem + mer.tailH * 0.32]], { closed: true, width: 1.3, wob: 0.6 });
+    pen.phase('detail');
+    if (chance(0.5)) retrace(tpts, { closed: true, width: 2.6, wob: 1.1, span: 0.25, at: SHADE < 0 ? 0.15 : 0.85 });   // the hip on the shadow side, gone over
+    if (chance(0.85)) clipTo(tpts, () => {                  // scales, in their own brick courses
+      for (let y = hem + 5; y < yt - 3; y += 6.5)
+        for (let x = cx - hips - sway; x < cx + hips + sway; x += 8) arc(x + (y % 13 ? 4 : 0), y, 3.2, Math.PI, Math.PI * 2, { width: 1.5, wob: 0.4, taper: false, role: 'texture' });
+    });
+    formShade(tpts, cx + d * sway * 0.35, (hem + yt) / 2, hips + sway * 0.6, mer.tailH * 0.5, SHADE, ri(10, 18), 10);   // the tail's round turns from the light
     if (chance(0.5)) dot(cx, hem - 8, 1.3);                 // a navel
     for (const s of [-1, 1]) sketch([[hx + s * 3, neckY + 1], [cx + s * bw * 0.7, neckY + 4]], { width: 1, wob: 0.6 });   // collarbones
     if (chance(0.4)) for (let i = 0, n = ri(2, 4); i < n; i++) arc(cx - d * bw * rf(1.3, 1.9), bodY + rf(-30, 30), rf(2, 4.5), 0, Math.PI * 2, { width: 1.1, wob: 0.5 });   // bubbles
   }
   if (is('hydra')) {
     const spread = bw * 0.55;
+    pen.phase('detail');
     clipTo(body, () => {                                    // belly plates
       for (let i = 0; i < 4; i++) { const y = hem - 5 - i * 7; sketch([[cx - bw * 0.8, y], [cx, y - 3], [cx + bw * 0.8, y]], { width: 1.1, wob: 0.8 }); }
     });
     for (let i = 0; i < hyd.n; i++) {
+      pen.phase('silhouette');
       const t = (i / (hyd.n - 1)) * 2 - 1;
       const bx = cx + t * spread * 0.6, hx2 = cx + t * spread + rf(-4, 4);
       const hy2 = bodY - bh - hyd.neckH * rf(0.72, 1.0) + Math.abs(t) * 8;
       const nw = rf(6.5, 8.5);
-      sketch([[bx - nw, bodY - bh * 0.3], [hx2 - nw * 0.9, hy2 + hyd.hr * 0.5], [hx2, hy2], [hx2 + nw * 0.9, hy2 + hyd.hr * 0.5], [bx + nw, bodY - bh * 0.2]], { fill: true, fillColor: pen.base, wash: dab, width: 2, wob: 1 });
+      const neckPts = [[bx - nw, bodY - bh * 0.3], [hx2 - nw * 0.9, hy2 + hyd.hr * 0.5], [hx2, hy2], [hx2 + nw * 0.9, hy2 + hyd.hr * 0.5], [bx + nw, bodY - bh * 0.2]];
+      sketch(neckPts, { fill: true, fillColor: pen.base, wash: dab, width: 2, wob: 1, role: 'silhouette' });
+      sketch(blobPts(hx2, hy2, hyd.hr * rf(1.1, 1.3), hyd.hr, 0.06, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2, wob: 1, role: 'silhouette' });
+      pen.phase('detail');
+      if (i === 0 && chance(0.5)) retrace(neckPts.slice(SHADE < 0 ? 0 : 3, SHADE < 0 ? 2 : 5), { width: 2, wob: 1, span: 0.8 });   // one neck firmed where it leaves the body
       for (let k = 1; k < 4; k++) {                         // ridges along the throat
         const ty2 = hy2 + hyd.hr * 0.5 + (bodY - bh * 0.3 - hy2 - hyd.hr * 0.5) * k / 4;
-        line(hx2 - nw * 0.6 + (bx - hx2) * k / 4, ty2, hx2 + nw * 0.6 + (bx - hx2) * k / 4, ty2 + 1, { width: 1, wob: 0.6 });
+        line(hx2 - nw * 0.6 + (bx - hx2) * k / 4, ty2, hx2 + nw * 0.6 + (bx - hx2) * k / 4, ty2 + 1, { width: 1.4, wob: 0.6, role: 'texture' });
       }
-      sketch(blobPts(hx2, hy2, hyd.hr * rf(1.1, 1.3), hyd.hr, 0.06, 12), { closed: true, fill: true, fillColor: pen.base, wash: dab, width: 2, wob: 1 });
+      pen.phase('expression');
       dot(hx2 - hyd.hr * 0.4, hy2, 1.7); dot(hx2 + hyd.hr * 0.4, hy2, 1.7);
       if (chance(0.6)) for (const e of [-1, 1]) line(hx2 + e * hyd.hr * 0.4 - 3, hy2 - 5, hx2 + e * hyd.hr * 0.4 + 3, hy2 - 5 - e * 2, { width: 1.2, wob: 0.5 });   // knitted brows
       const md = wpick({ smile: 1.2, frown: 1.4, tongue: 1, o: 0.8, teeth: 1 }), mY2 = hy2 + hyd.hr * 0.45;
@@ -666,13 +737,17 @@ function drawCreature(cx, cy, seed) {
     }
   }
   if (is('spider')) {
+    pen.phase('silhouette');
     if (thread) line(cx + rf(-2, 2), topY - 4, cx, bodY - bh + 4, { width: 1.2, wob: 1.2 });
     for (const s of [-1, 1]) for (let i = 0; i < 4; i++) {  // four bent legs a side, joints marked
       const y0 = bodY - bh * 0.25 + i * bh * 0.28, x0 = cx + s * bw * 0.85;
       const kx = x0 + s * rf(12, 18), ky = y0 - rf(8, 14);
-      sketch([[x0, y0], [kx, ky], [kx + s * rf(4, 9), ky + rf(16, 26)]], { width: rf(1.8, 2.4), wob: 0.9 });
+      const leg = [[x0, y0], [kx, ky], [kx + s * rf(4, 9), ky + rf(16, 26)]];
+      sketch(leg, { width: rf(1.8, 2.4), wob: 0.9 });
+      if (s === SHADE && i === 1 && chance(0.6)) retrace(leg.slice(0, 2), { width: 2.2, wob: 0.9, span: 0.8 });   // where a leg leaves the body
       dot(kx, ky, 1.4);
     }
+    pen.phase('detail');
     if (chance(0.6)) {                                      // a mark on the abdomen
       const ay = bodY + bh * 0.45;
       sketch([[cx - 4, ay - 5], [cx + 4, ay - 5], [cx - 4, ay + 5], [cx + 4, ay + 5]], { closed: true, fill: true, width: 1, wob: 0.5 });
@@ -681,43 +756,48 @@ function drawCreature(cx, cy, seed) {
 
   /* ----- the black cat: head, ears, eyes shining out of the ink ----- */
   if (is('cat')) {
-    const d = catP.d, eyeCol = chance(0.55) ? ACCENTS[0] : pen.base;
+    pen.phase('silhouette');
+    const d = catP.d, eyeCol = catEyeCol;
     function catEye(x, y, w) {
       sketch([[x - w, y], [x, y - w * 0.7], [x + w, y], [x, y + w * 0.7]], { closed: true, fill: true, fillColor: eyeCol, color: eyeCol, width: 1, wob: 0.4, taper: false });
       line(x + look * w * 0.2, y - w * 0.5, x + look * w * 0.2, y + w * 0.5, { width: 1.6, wob: 0.3 });   // the slit
     }
     if (catP.pose === 'sit') {
       const hr2 = catP.hr, hy2 = catP.hy;
-      for (const s of [-1, 1]) sketch([[fx + s * hr2 * 0.85, hy2 - hr2 * 0.35], [fx + s * hr2 * rf(0.75, 0.95), hy2 - hr2 * rf(1.35, 1.6)], [fx + s * hr2 * 0.25, hy2 - hr2 * 0.85]], { closed: true, fill: true, width: 1.6, wob: 0.7 });   // ears
-      sketch(blobPts(fx, hy2, hr2 * 1.05, hr2, 0.05, 14), { closed: true, fill: true, width: 2, wob: 1 });   // the head
+      for (const s of [-1, 1]) sketch([[fx + s * hr2 * 0.85, hy2 - hr2 * 0.35], [fx + s * hr2 * rf(0.75, 0.95), hy2 - hr2 * rf(1.35, 1.6)], [fx + s * hr2 * 0.25, hy2 - hr2 * 0.85]], { closed: true, fill: true, width: 1.6, wob: 0.7, role: 'silhouette' });   // ears
+      sketch(blobPts(fx, hy2, hr2 * 1.05, hr2, 0.05, 14), { closed: true, fill: true, width: 2, wob: 1, role: 'silhouette' });   // the head
       if (chance(0.35)) sketch(blobPts(cx + d * 2, bodY - bh * 0.45, bw * 0.26, bh * 0.32, 0.1, 12), { closed: true, fill: true, fillColor: pen.base, color: pen.base, width: 1, wob: 1 });   // a white bib under the chin
       for (const s of [-1, 1]) {                            // slim front legs, standing clear of the body on the paper
         const lx2 = cx + s * bw * 0.27, lw2 = bw * rf(0.12, 0.15);
         sketch([[lx2 - lw2, bodY - bh * rf(0.05, 0.2)], [lx2 + lw2, bodY - bh * rf(0.05, 0.2)], [lx2 + lw2 * 0.8, hem + legH - 2], [lx2 - lw2 * 0.8, hem + legH - 2]], { closed: true, fill: true, fillColor: pen.ink, color: pen.base, width: 1.6, wob: 0.8 });
         sketch(blobPts(lx2 + s * 2, hem + legH - 3, lw2 * 1.6, 4.5, 0.1, 8), { closed: true, fill: true, fillColor: chance(0.4) ? pen.base : pen.ink, width: 1.3, wob: 0.6 });   // a paw, sometimes in a white sock
       }
+      pen.phase('expression');
       for (const s of [-1, 1]) catEye(fx + s * hr2 * 0.44, fy - hr2 * 0.05, hr2 * 0.34);
       if (mood === 'grumpy') for (const s of [-1, 1]) line(fx + s * hr2 * 0.2, fy - hr2 * 0.45, fx + s * hr2 * 0.65, fy - hr2 * 0.32, { width: 1.4, wob: 0.4, color: pen.base });
       sketch([[fx - 2, fy + hr2 * 0.32], [fx + 2, fy + hr2 * 0.32], [fx, fy + hr2 * 0.42]], { closed: true, fill: true, fillColor: pen.base, color: pen.base, width: 0.8, wob: 0.3 });   // the nose
       if (chance(0.5)) for (const s of [-1, 1]) arc(fx + s * 3.5, fy + hr2 * 0.52, 3.5, s > 0 ? 0.35 : Math.PI * 0.65 - 0.35, s > 0 ? Math.PI * 0.35 + 0.35 : Math.PI - 0.35, { width: 1, wob: 0.3, color: pen.base });   // the w of the mouth
       for (const s of [-1, 1]) for (let i = 0; i < 3; i++)
         line(fx + s * hr2 * 0.78, fy + hr2 * 0.2 + (i - 1) * 4, fx + s * (hr2 * 0.78 + rf(13, 20)), fy + hr2 * 0.25 + (i - 1) * 6, { width: 1.1, wob: 0.7 });   // whiskers
+      pen.phase('accessories');
       if (chance(0.3)) {                                    // a collar, and its bell
         const ny2 = hy2 + hr2 * 0.85;
-        line(fx - hr2 * 0.8, ny2, fx + hr2 * 0.8, ny2 + rf(-2, 2), { width: 4, wob: 0.6, color: pick(ACCENTS), taper: false });
+        line(fx - hr2 * 0.8, ny2, fx + hr2 * 0.8, ny2 + rf(-2, 2), { width: 4, wob: 0.6, color: collarCol, taper: false });
         dot(fx, ny2 + 5, 2.4, pen.base);
       }
     } else {
       const aw = catP.aw, ah = catP.ah;
       for (const [ex4, ey4] of [[0.66, 0.8], [0.5, 0.76]])   // two ears on the lowered head
-        sketch([[cx + d * aw * (ex4 - 0.06), hem - ah * (ey4 - 0.04)], [cx + d * aw * ex4, hem - ah * ey4 - rf(8, 13)], [cx + d * aw * (ex4 + 0.05), hem - ah * (ey4 - 0.05)]], { closed: true, fill: true, width: 1.4, wob: 0.6 });
+        sketch([[cx + d * aw * (ex4 - 0.06), hem - ah * (ey4 - 0.04)], [cx + d * aw * ex4, hem - ah * ey4 - rf(8, 13)], [cx + d * aw * (ex4 + 0.05), hem - ah * (ey4 - 0.05)]], { closed: true, fill: true, width: 1.4, wob: 0.6, role: 'silhouette' });
       for (let i = 0, n = ri(6, 9); i < n; i++) {            // hackles up along the arch
         const t = 0.15 + (i / n) * 0.5, bx4 = cx + d * aw * (0.35 - t), by4 = hem - ah * (0.78 + 0.22 * Math.sin(Math.PI * t / 0.65));
         line(bx4, by4, bx4 - d * rf(2, 5), by4 - rf(5, 9), { width: rf(1.1, 1.6), wob: 0.6 });
       }
+      pen.phase('expression');
       for (const k of [-1, 1]) catEye(fx + d * (2 + k * catP.aw * 0.055), fy, 5.2);   // both eyes, the doodle way
       sketch([[cx + d * aw * 0.7, hem - ah * 0.58], [cx + d * aw * 0.76, hem - ah * 0.56]], { width: 1.2, wob: 0.4, color: pen.base });   // a hissing muzzle line
       for (let i = 0; i < 3; i++) line(cx + d * aw * 0.72, hem - ah * (0.56 - i * 0.025), cx + d * aw * 0.72 + d * rf(12, 18), hem - ah * (0.57 - i * 0.045), { width: 1.1, wob: 0.7 });   // whiskers
+      pen.phase('silhouette');
       for (const lx of [0.47, 0.33, -0.26, -0.42]) {        // four legs of its own, paper between them
         const x1 = cx + d * aw * lx, splay = d * Math.sign(lx) * rf(0, 2.5), w3 = rf(3, 4);
         sketch([[x1 - w3, hem - ah * 0.3], [x1 + w3, hem - ah * 0.3], [x1 + w3 * 0.9 + splay, hem - 2], [x1 - w3 * 0.9 + splay, hem - 2]], { closed: true, fill: true, width: 1.4, wob: 0.6 });
@@ -727,10 +807,13 @@ function drawCreature(cx, cy, seed) {
   }
 
   /* ----- legs and feet ----- */
+  pen.phase('silhouette');
   if (legStyle === 'stick') for (const s of [-1, 1]) {
     const lx = cx + s * bw * (is('imp') ? 0.45 : 0.35), k = s * rf(-2, 4);
     const ky = hem - 4 + legH * rf(0.45, 0.6), kx = lx + k * 0.5 + s * rf(0, 3);
-    sketch([[lx, hem - 4], [kx, ky], [lx + k, hem + legH]], { width: rf(2, 2.8), wob: 0.9 });
+    const leg = [[lx, hem - 4], [kx, ky], [lx + k, hem + legH]];
+    sketch(leg, { width: rf(2, 2.8), wob: 0.9 });
+    if (s === SHADE && chance(0.5)) retrace(leg.slice(0, 2), { width: 2.4, wob: 0.9, span: 0.7 });   // where the leg leaves the body
     if (is('skeleton')) { arc(kx, ky, 2.2, 0, Math.PI * 2, { width: 1.1, wob: 0.4 }); }   // a knee of bone
     const ftx = lx + k + s * rf(4, 7), fty = hem + legH + rf(-1, 1), fw = rf(8, 13) * (is('imp') ? 1.25 : 1), fh = rf(3.5, 5.5);
     const shoe = is('human') && chance(0.5);
@@ -760,13 +843,16 @@ function drawCreature(cx, cy, seed) {
     const [hx2, hy2] = arms === 'up' ? [x0 + s * len * 0.5, armY - len]
                      : arms === 'out' ? [x0 + s * len * 0.9, armY - len * 0.15]
                      : [x0 + s * len * 0.25, armY + len * 0.9];
-    sketch([[x0, armY], [x0 + (hx2 - x0) * 0.5 + s * rf(0, 4), (armY + hy2) / 2], [hx2, hy2]], { width: rf(2, 2.6), wob: 1 });
+    const arm = [[x0, armY], [x0 + (hx2 - x0) * 0.5 + s * rf(0, 4), (armY + hy2) / 2], [hx2, hy2]];
+    sketch(arm, { width: rf(2, 2.6), wob: 1 });
+    if (s === SHADE && chance(0.5)) retrace(arm.slice(0, 2), { width: 2.3, wob: 1, span: 0.7 });   // the shoulder, where the arm meets the body
     if (is('skeleton')) arc(x0 + (hx2 - x0) * 0.5 + s * 2, (armY + hy2) / 2, 2, 0, Math.PI * 2, { width: 1, wob: 0.4 });   // an elbow of bone
     hands.push([hx2, hy2, s]);
     if (is('skeleton') || chance(0.8)) for (let i = -1; i <= 1; i++)   // three-fingered
       line(hx2, hy2, hx2 + s * 5 + i * 2.5, hy2 + (arms === 'up' ? -5 : 5) + i * 2, { width: 1.4, wob: 0.6 });
     else dot(hx2, hy2, 2.6);
   }
+  pen.phase('accessories');
   if (held && hands.length) {
     const [hx2, hy2, s] = hands[look >= 0 ? hands.length - 1 : 0];
     pen.ctx.save(); pen.ctx.translate(hx2, hy2); pen.ctx.rotate(s * rf(-0.5, -0.2));
@@ -786,14 +872,15 @@ function drawCreature(cx, cy, seed) {
       for (let i = 0; i < 2; i++) dot(rf(-4, 4), 29 + rf(0, 5), 1.4, BLOOD);  // it drips
     } else {
       line(0, 0, 2, -14, { width: 1.6, wob: 0.8 });
-      const fpw = chance(0.6) ? { color: pick([PINK, ACCENTS[0], ACCENTS[4]]), alpha: 0.6, grow: 1, mode: 'flat' } : null;
-      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; sketch(blobPts(2 + Math.cos(a) * 5, -18 + Math.sin(a) * 5, 3.5, 3.5, 0.1, 8), { closed: true, wash: fpw, width: 1.1, wob: 0.4, taper: false }); }
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; sketch(blobPts(2 + Math.cos(a) * 5, -18 + Math.sin(a) * 5, 3.5, 3.5, 0.1, 8), { closed: true, wash: flowerCol, width: 1.1, wob: 0.4, taper: false }); }
       dot(2, -18, 2.2);
     }
     pen.ctx.restore();
   }
 
-  /* ----- the face ----- */
+  /* ----- the face (the quiet zone is done with: the features are the face) ----- */
+  pen.phase('expression');
+  pen.quiet = null;
   const faceStd = !is('skeleton', 'reaper', 'hydra', 'spider', 'eyeball', 'dragon', 'cat') && odd !== 'twohead' && odd !== 'blank';
   const gap = rf(13, 19) * fs, exL = fx - gap, exR = fx + gap;
   const eyeY = fy, pr = look * 0.35;
@@ -801,8 +888,12 @@ function drawCreature(cx, cy, seed) {
     arc(x, y, r, 0, Math.PI * 2, { width: 1.8, wob: 0.9 });
     if (r > 4.5 && chance(0.55)) arc(x + pr * r * 0.4, y, r * 0.55, 0, Math.PI * 2, { width: 1, wob: 0.6 });   // an iris
     dot(x + pr * r + rf(-1, 1), y + rf(-1, 1.5), Math.max(1.4, r * rf(0.22, 0.34)));
-    if (chance(0.4)) arc(x, y - r * 0.12, r * 1.02, Math.PI * 1.12, Math.PI * 1.88, { width: 1.3, wob: 0.7 });   // a heavy upper lid
-    if (chance(0.3)) line(x - r * 0.6, y + r * 1.4, x + r * 0.6, y + r * 1.5, { width: 0.9, wob: 0.8 });         // a tired underline
+    if (chance(0.4)) {                                      // a heavy upper lid, pressed down twice
+      const lid = arcP(x, y - r * 0.12, r * 1.02, Math.PI * 1.12, Math.PI * 1.88);
+      sketch(lid, { width: 1.3, wob: 0.7 });
+      if (chance(0.6)) retrace(lid, { width: 1.6, wob: 0.7, span: 0.7 });
+    }
+    if (chance(0.3)) line(x - r * 0.6, y + r * 1.4, x + r * 0.6, y + r * 1.5, { width: 1.3, wob: 0.8, role: 'texture' });   // a tired underline
   }
   if (faceStd) {
     if (dread) {                                            // the scary eyes
@@ -915,13 +1006,13 @@ function drawCreature(cx, cy, seed) {
     const pu = ir * rf(0.4, 0.52);
     for (let i = 0, n = ri(7, 11); i < n; i++) {            // the iris, spoked
       const a = rf(0, 6.28);
-      line(ix + Math.cos(a) * pu * 1.1, fy + Math.sin(a) * pu * 1.1, ix + Math.cos(a) * ir * 0.9, fy + Math.sin(a) * ir * 0.9, { width: 0.9, wob: 0.5, taper: false });
+      line(ix + Math.cos(a) * pu * 1.1, fy + Math.sin(a) * pu * 1.1, ix + Math.cos(a) * ir * 0.9, fy + Math.sin(a) * ir * 0.9, { width: 1.4, wob: 0.5, taper: false, role: 'texture' });
     }
     dot(ix + look * 2, fy + rf(-2, 2), pu);
     dot(ix - ir * 0.2, fy - ir * 0.25, Math.max(1.5, ir * 0.13), pen.base);   // a shine
     for (let i = 0, n = ri(5, 9); i < n; i++) {             // bloodshot squiggles from the rim
       const a = rf(0, 6.28), x0 = cx + Math.cos(a) * bw * 0.95, y0 = bodY + Math.sin(a) * bh * 0.95;
-      sketch([[x0, y0], [x0 - Math.cos(a) * rf(5, 9) + rf(-3, 3), y0 - Math.sin(a) * rf(5, 9) + rf(-3, 3)], [x0 - Math.cos(a) * rf(10, 16), y0 - Math.sin(a) * rf(10, 16)]], { width: 1, wob: 1.4 });
+      sketch([[x0, y0], [x0 - Math.cos(a) * rf(5, 9) + rf(-3, 3), y0 - Math.sin(a) * rf(5, 9) + rf(-3, 3)], [x0 - Math.cos(a) * rf(10, 16), y0 - Math.sin(a) * rf(10, 16)]], { width: 1.5, wob: 1.4, role: 'texture' });
     }
     if (chance(0.4)) for (let i = -2; i <= 2; i++) {        // lashes
       const a = -Math.PI / 2 + i * 0.32;
@@ -937,6 +1028,7 @@ function drawCreature(cx, cy, seed) {
   }
 
   /* ----- the gore, and now the blood runs red ----- */
+  pen.phase('detail');
   if (gore === 'drip') {                                    // a trickle from the corner of the mouth
     const mcx = fx + pick([-1, 1]) * 6 * fs;
     line(mcx, myY + 2, mcx + rf(-1, 2), myY + rf(9, 14), { width: 1.7, wob: 0.7, color: BLOOD, taper: false });
@@ -968,6 +1060,7 @@ function drawCreature(cx, cy, seed) {
     sketch(blobPts(cx + rf(-8, 8), hem + legH + 6, rf(11, 17), rf(3, 5), 0.15, 12), { closed: true, fill: true, fillColor: BLOOD, color: BLOOD, width: 1.2, wob: 1 });
 
   /* ----- something on the chest ----- */
+  pen.phase('accessories');
   const chestY = is('longneck') ? bodY - bh * 0.3 : is('human') ? bodY + rf(-8, 4) : Math.min(myY + rf(22, 34), hem - 12);
   if (extra === 'heart') { const hfill = chance(0.35); sketch(heartPts(cx + rf(-6, 6), chestY, rf(7, 10)), { closed: true, fill: hfill, wash: hfill ? null : { color: BLOOD, alpha: rf(0.5, 0.65), grow: 1, mode: 'flat' }, width: 1.6, wob: 0.7 }); }
   else if (extra === 'buttons') for (let i = 0; i < 3; i++) { const by2 = chestY + i * rf(9, 13); dot(cx, by2, rf(1.8, 2.8)); if (chance(0.4)) arc(cx, by2, 3.6, 0, Math.PI * 2, { width: 0.8, wob: 0.4 }); }
@@ -979,12 +1072,13 @@ function drawCreature(cx, cy, seed) {
   }
 
   /* ----- a patch of ground, hatched in ----- */
+  pen.phase('detail');
   if (!is('mermaid', 'spider') && chance(0.45)) {
     const gy = hem + legH + 7, gw2 = bw * rf(0.7, 1.1);
     line(cx - gw2, gy, cx + bw * rf(0.7, 1.1), gy + rf(-2, 2), { width: 1.6, wob: 1.4 });
     for (let i = 0, n = ri(3, 7); i < n; i++) {             // the shadow it stands in
       const x = cx + rf(-gw2 * 0.7, gw2 * 0.7);
-      line(x, gy + 2, x + rf(4, 8), gy + rf(4, 6), { width: 1, wob: 0.6, taper: false });
+      line(x, gy + 2, x + rf(4, 8), gy + rf(4, 6), { width: 1.5, wob: 0.6, taper: false, role: 'texture' });
     }
   }
 
@@ -992,5 +1086,6 @@ function drawCreature(cx, cy, seed) {
   return odd ? { kind, mood, odd } : { kind, mood };
 }
 
-Sheet.register('creatures', { name: 'creatures', H: 2420, draw: drawCreature, census: ['kind', 'mood'], zoom: 1.1 });
+Sheet.register('creatures', { name: 'creatures', H: 2420, draw: drawCreature, census: ['kind', 'mood'], zoom: 1.1,
+                              pool: BODY_WEIGHTS, locks: ['silhouette', 'expression', 'palette', 'accessories'] });
 })();

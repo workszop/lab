@@ -31,6 +31,18 @@ button.toggle[aria-expanded="true"] { background: var(--paper-2); color: var(--i
 .controls button { padding: 6px 14px; font-size: 13px; }
 @media (max-width: 768px) { .ctl input[type=range] { width: 84px; } }
 
+/* the lock strip: shown while the sheet is variations of one drawing */
+.locks {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: center;
+  padding: 8px 16px; margin: 0 0 14px; max-width: 860px; width: 100%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2);
+}
+.locks-label b { color: var(--ink); font-weight: 600; }
+.lock { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.lock input { accent-color: var(--marigold); width: 15px; height: 15px; margin: 0; }
+.locks .edu-btn { padding: 6px 14px; font-size: 13px; }
+
 /* the paper, and over it a grid of invisible buttons — one per drawing — that carry the
    keyboard: Tab onto the sheet, arrows to move, Enter or Space (or a click) to enlarge */
 .sheet {

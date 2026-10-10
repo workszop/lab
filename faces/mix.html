@@ -54,16 +54,23 @@ const SALT = Object.fromEntries(MIX.map((n, i) => [n, (0x9E3779B9 * (i + 1)) >>>
 
 function drawMix(cx, cy, seed, { big = false } = {}) {
   pen.seed(seed);
-  const name = wpick(MIX_WEIGHTS);
+  pen.phase('silhouette');                 // which hand draws the cell is part of its silhouette: locked with it while varying
+  const name = pooled(MIX_WEIGHTS);        // dealt from the sheet's deck, so every hand gets its share
   const cfg = COLLECTIONS[name];
+  /* the drawing is seeded with its collection's salt; a locked phase must reach the same salted stream */
+  const lockBase = pen.lockBase;
+  if (lockBase != null) pen.lockBase = (lockBase ^ SALT[name]) >>> 0;
+  pen.pool = null;                         // the inner hand rolls its own motif
   pen.ctx.save();
   if (big && (cfg.zoom || 1) !== 1) pen.ctx.scale(cfg.zoom, cfg.zoom);   // each collection keeps its own viewer magnification
-  const who = cfg.draw(cx, cy, (seed ^ SALT[name]) >>> 0, { big }) || {};
-  pen.ctx.restore();
+  let who;
+  try { who = cfg.draw(cx, cy, (seed ^ SALT[name]) >>> 0, { big }) || {}; }
+  finally { pen.ctx.restore(); pen.lockBase = lockBase; }
   return { c: name, ...who };
 }
 
-Sheet.init({ name: 'mix', H: 2420, draw: drawMix, census: ['c'], zoom: 1 });
+Sheet.init({ name: 'mix', H: 2420, draw: drawMix, census: ['c'], zoom: 1, pool: MIX_WEIGHTS,
+             locks: ['silhouette', 'expression', 'palette', 'accessories'] });
 </script>
 </body>
 </html>

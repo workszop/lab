@@ -17,6 +17,7 @@
      #sheet[data-hash]    pixel hash of the paper, only with ?probe=1
      #sheet[data-smoke]   with ?smoke=N: N extra seeds drawn in-page, { seeds, errors }
      #sheet[data-controls] the user's pen settings in force (JSON)
+     #sheet[data-vary]    while the sheet shows variations of one drawing: { seed, locks } (JSON)
      #big[data-index|data-seed|data-label]  the enlarged drawing
    ============================================================ */
 
@@ -45,12 +46,18 @@ const CONTROLS = [
   { id: 'fill',   label: 'fill',   min: 0,   max: 1,   step: 0.05, def: 0 },   // 0 accurate … 1 messy
 ];
 const PANEL_KEY = 'sketchbook.controlsOpen';
+/* the locks a sheet can offer while varying one drawing, in the order they are shown */
+const LOCK_NAMES = ['silhouette', 'expression', 'palette', 'accessories'];
+const DECK_SALT = 0x5EED;
 
 /* ─── State ─── */
 let H = 2420, CELL_W = W / COLS, CELL_H = H / ROWS;
 const SHEET = {
   name: 'sheet', draw: null, census: [], jitter: [14, 14], zoom: 1,
+  locks: [],               // the phases this hand can lock while varying (from the collection's cfg)
+  pool: null,              // the collection's motif weights: the sheet deals a shuffled deck from them
   masterSeed: 0, cells: [], current: -1,
+  vary: null,              // { seed, who, locks: {name: true} } while the sheet shows variations of one drawing
   pendingDraw: 0,          // a redraw is scheduled for the next frame
   pendingPreview: 0,       // a low-resolution preview frame is scheduled
   previewTimer: 0,         // the timer that turns a drag's last preview into a full draw
@@ -88,7 +95,8 @@ function say(text) { if (live) live.textContent = text; }
 function rememberUrl() {
   const open = SHEET.current >= 0 ? `&open=${SHEET.current + 1}` : '';
   const ctl = CONTROLS.filter(c => pen.user[c.id] !== c.def).map(c => `&${c.id}=${pen.user[c.id]}`).join('');
-  try { history.replaceState(null, '', `?seed=${SHEET.masterSeed}${open}${ctl}`); } catch (_) { /* file:// */ }
+  const vary = SHEET.vary ? `&vary=${SHEET.vary.seed}&lock=${lockedNames().join(',')}` : '';
+  try { history.replaceState(null, '', `?seed=${SHEET.masterSeed}${open}${ctl}${vary}`); } catch (_) { /* file:// */ }
 }
 /* run fn once, after the browser has had one chance to paint — so a 'drawing' state (and its busy
    cursor) is actually seen before the synchronous canvas work starts. A timer backs the frame up:
@@ -148,6 +156,33 @@ function renderControls() {
 }
 const describe = who => Object.values(who || {}).filter(v => typeof v === 'string').join(' · ');
 
+/* ─── The deck: against near-repeats, a sheet that has a motif table deals every cell a card ───
+   The 48 cards are dealt in proportion to the weights (each kind gets its expected share, the
+   remainders go by lot), then shuffled with the sheet's seed — so a sheet still looks random, but no
+   kind crowds in three times while another never shows. Off while varying: the locks decide then. */
+function dealDeck(weights, n) {
+  const keys = Object.keys(weights).filter(k => weights[k] > 0);
+  if (!keys.length) return null;
+  let total = 0; for (const k of keys) total += weights[k];
+  const deck = [], frac = [];
+  let dealt = 0;
+  for (const k of keys) {
+    const want = weights[k] / total * n, whole = Math.floor(want);
+    for (let i = 0; i < whole; i++) deck.push(k);
+    dealt += whole; frac.push([k, want - whole]);
+  }
+  frac.sort((a, b) => b[1] - a[1]);                                 // the biggest remainders first
+  for (let i = 0; dealt < n; i++, dealt++) deck.push(frac[i % frac.length][0]);
+  for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(pen.R() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  return deck;
+}
+const lockedNames = () => LOCK_NAMES.filter(n => SHEET.vary && SHEET.vary.locks[n]);
+/* set the pen's locks for the cell about to be drawn */
+function armLocks() {
+  if (SHEET.vary) { pen.lockBase = SHEET.vary.seed; pen.locks = { ...SHEET.vary.locks }; }
+  else { pen.lockBase = null; pen.locks = {}; }
+}
+
 /* ─── The paper: plain, white, no grain ─── */
 function paperBase() {
   pen.ctx.save();
@@ -172,6 +207,9 @@ function drawAll(scale = SCALE, preview = false) {
 
   const census = {};
   SHEET.cells.length = 0;
+  pen.seed((SHEET.masterSeed ^ DECK_SALT) >>> 0);
+  const deck = SHEET.pool && !SHEET.vary ? dealDeck(SHEET.pool, COLS * ROWS) : null;
+  armLocks();
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
       const seed = CELL_SEED(SHEET.masterSeed, row, col);
@@ -179,21 +217,26 @@ function drawAll(scale = SCALE, preview = false) {
       const cx = CELL_W * (col + 0.5) + rf(-SHEET.jitter[0], SHEET.jitter[0]);
       const cy = CELL_H * (row + 0.5) + rf(-SHEET.jitter[1], SHEET.jitter[1]);
       pen.reset();
+      pen.pool = deck ? deck[row * COLS + col] : null;
       const z = pen.user.zoom;
       pen.ctx.save();
       if (z !== 1) { pen.ctx.translate(cx, cy); pen.ctx.scale(z, z); pen.ctx.translate(-cx, -cy); }   // user zoom, about the cell's centre
       const who = SHEET.draw(cx, cy, seed ^ DRAW_SALT, { big: false }) || {};
       pen.ctx.restore();
       for (const key of SHEET.census) if (who[key] != null) census[who[key]] = (census[who[key]] || 0) + 1;
-      SHEET.cells.push({ row, col, seed: seed ^ DRAW_SALT, who });
+      SHEET.cells.push({ row, col, seed: seed ^ DRAW_SALT, who, pool: pen.pool });
     }
   }
+  pen.pool = null;
   if (preview) return;   // the settled draw redoes the labels and the contract below
   labelCells();
+  renderLocks();
   /* DOM contract: the sheet publishes what it drew */
   sheet.dataset.seed = SHEET.masterSeed;
   sheet.dataset.census = JSON.stringify(census);
   sheet.dataset.controls = JSON.stringify(pen.user);
+  if (SHEET.vary) sheet.dataset.vary = JSON.stringify({ seed: SHEET.vary.seed, locks: lockedNames() });
+  else delete sheet.dataset.vary;
   if (params.get('probe')) sheet.dataset.hash = pixelHash();
   sheet.dataset.state = 'ready';
   if (seedLabel) seedLabel.textContent = `· seed ${SHEET.masterSeed}`;
@@ -305,9 +348,11 @@ function showDrawing(i) {
     bctx.translate(big.width / 2, big.height / 2);
     bctx.scale(s, s);
     pen.reset();
+    armLocks();
+    pen.pool = cell.pool ?? null;               // the same card the sheet dealt this cell
     SHEET.draw(0, 0, cell.seed, { big: true });
   } finally {
-    pen.ctx = sheetCtx; pen.base = PAPER;
+    pen.ctx = sheetCtx; pen.base = PAPER; pen.pool = null;
   }
   const label = describe(cell.who);
   bigLabel.textContent = `${label ? label + ' · ' : ''}${i + 1} of ${SHEET.cells.length}`;
@@ -342,6 +387,48 @@ function exportOne() {
   const slug = describe(cell.who).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
   download(big, `${SHEET.name}-${slug || 'drawing'}-${cell.seed}.png`);
 }
+/* ─── Variations: the sheet redrawn as 48 takes on one drawing, with locks ───
+   Every drawing rolls its decisions in phases (see pen.phase); locking a phase seeds it from the
+   drawing being varied, so what is locked comes out the same and the rest rolls anew. */
+function startVary(i) {
+  const cell = SHEET.cells[i]; if (!cell) return;
+  const keep = SHEET.vary && SHEET.vary.locks;
+  const locks = {};
+  for (const n of SHEET.locks) locks[n] = keep ? !!keep[n] : n === 'silhouette';   // first time: the silhouette alone
+  SHEET.vary = { seed: cell.seed, who: cell.who, locks };
+  closeViewer();
+  reroll();
+  say(`variations of ${describe(cell.who) || 'drawing ' + (i + 1)}`);
+}
+function stopVary() {
+  if (!SHEET.vary) return;
+  SHEET.vary = null;
+  reroll();
+  say('back to the sheet');
+}
+/* the lock strip above the sheet: what is being varied, one checkbox per lock, a way back */
+function renderLocks() {
+  let strip = document.getElementById('locks');
+  if (!SHEET.vary) { if (strip) strip.remove(); return; }
+  if (!strip) {
+    strip = document.createElement('div');
+    strip.className = 'locks'; strip.id = 'locks';
+    strip.setAttribute('role', 'group'); strip.setAttribute('aria-label', 'Variation locks');
+    sheet.insertAdjacentElement('beforebegin', strip);
+    strip.addEventListener('change', e => {
+      const box = e.target.closest('input[type=checkbox]'); if (!box) return;
+      SHEET.vary.locks[box.name] = box.checked;
+      requestDraw();
+    });
+    strip.addEventListener('click', e => { if (e.target.closest('#stopVary')) stopVary(); });
+  }
+  const who = describe(SHEET.vary.who);
+  strip.innerHTML = `<span class="locks-label">variations of <b>${who || 'one drawing'}</b> · lock</span>` +
+    LOCK_NAMES.filter(n => SHEET.locks.includes(n)).map(n =>
+      `<label class="lock"><input type="checkbox" name="${n}"${SHEET.vary.locks[n] ? ' checked' : ''}> ${n}</label>`).join('') +
+    `<button type="button" id="stopVary" class="edu-btn ghost" title="back to a sheet of different drawings (v)">Back to sheet</button>`;
+}
+
 /* Tab stays inside the open viewer (inert handles the rest of the page; this keeps Tab from
    leaving for the browser chrome) */
 function trapTab(e) {
@@ -369,6 +456,7 @@ function handleKey(key) {
     if (key === 'ArrowLeft') { showDrawing(SHEET.current - 1); return true; }
     if (key === 'ArrowRight') { showDrawing(SHEET.current + 1); return true; }
     if (key === 'e') { exportOne(); return true; }
+    if (key === 'v') { if (SHEET.locks.length) startVary(SHEET.current); return true; }
     if (key === 'r') { closeViewer(); reroll(); return true; }   // Redraw from inside the viewer: close it and roll a new sheet
     if (key === 's') { savePng(); return true; }
     return false;
@@ -376,6 +464,7 @@ function handleKey(key) {
   if (key === 'r') { reroll(); return true; }
   if (key === 's') { savePng(); return true; }
   if (key === 'p') { toggleControls(); return true; }
+  if (key === 'v') { stopVary(); return true; }
   return false;
 }
 
@@ -387,8 +476,8 @@ const Sheet = {
   /* name: file-name stem for exports · H: paper height · draw: the drawing fn ·
      census: fields of draw()'s result to count · jitter: [x, y] cell wobble ·
      zoom: viewer magnification */
-  init({ name, H: height = 2420, draw, census = [], jitter, zoom } = {}) {
-    Object.assign(SHEET, { name, draw, census }, jitter && { jitter }, zoom && { zoom });
+  init({ name, H: height = 2420, draw, census = [], jitter, zoom, locks = [], pool = null } = {}) {
+    Object.assign(SHEET, { name, draw, census, locks: LOCK_NAMES.filter(n => locks.includes(n)), pool }, jitter && { jitter }, zoom && { zoom });
     if (window.parent === window) document.body.classList.add('standalone');   // opened on its own: show the brand bar
     H = height; CELL_W = W / COLS; CELL_H = H / ROWS;
     sheetCtx = pen.ctx = canvas.getContext('2d');
@@ -402,6 +491,7 @@ const Sheet = {
             <button type="button" id="prev" class="edu-btn ghost" title="previous drawing (←)">‹ prev</button>
             <button type="button" id="next" class="edu-btn ghost" title="next drawing (→)">next ›</button>
             <button type="button" id="exportOne" class="edu-btn" title="export this drawing as a transparent PNG (e)">Export PNG · transparent</button>
+            <button type="button" id="varyOne" class="edu-btn ghost" title="redraw the sheet as variations of this drawing (v)">Variations</button>
             <button type="button" id="closeViewer" class="edu-btn ghost" title="close (Esc)">Close</button>
           </div>
         </div>
@@ -417,6 +507,8 @@ const Sheet = {
     document.getElementById('prev').addEventListener('click', () => showDrawing(SHEET.current - 1));
     document.getElementById('next').addEventListener('click', () => showDrawing(SHEET.current + 1));
     document.getElementById('exportOne').addEventListener('click', exportOne);
+    const varyBtn = document.getElementById('varyOne');
+    if (SHEET.locks.length) varyBtn.addEventListener('click', () => startVary(SHEET.current)); else varyBtn.hidden = true;
     document.getElementById('closeViewer').addEventListener('click', closeViewer);
     document.getElementById('redraw')?.addEventListener('click', reroll);
     document.getElementById('save')?.addEventListener('click', savePng);
@@ -434,6 +526,13 @@ const Sheet = {
     });
 
     SHEET.masterSeed = urlSeed();
+    /* ?vary=<seed>&lock=a,b: land straight on a sheet of variations */
+    const varyRaw = params.get('vary'), varySeed = Number(varyRaw);
+    if (SHEET.locks.length && varyRaw !== null && varyRaw !== '' && Number.isInteger(varySeed) && varySeed >= 0) {
+      const asked = (params.get('lock') || '').split(',');
+      const locks = {}; for (const n of SHEET.locks) locks[n] = asked.includes(n);
+      SHEET.vary = { seed: varySeed >>> 0, who: {}, locks };
+    }
     loadControls();
     renderControls();
     afterPaint(firstDraw);   // let the page lay out once, then draw — timer-backed, so a throttled or occluded tab still draws (bare rAF can freeze there)
@@ -445,7 +544,7 @@ function firstDraw() {
     const open = Number(params.get('open'));
     if (Number.isInteger(open) && open >= 1 && open <= SHEET.cells.length) showDrawing(open - 1);
     /* ?smoke=N: draw N more seeds (and enlarge a few drawings of each) to flush out rare branches that throw;
-       the result lands on the DOM for verify.sh; the sheet ends on the seed it started with */
+       the result lands on the DOM for the smoke harness; the sheet ends on the seed it started with */
     const smoke = Number(params.get('smoke'));
     if (Number.isInteger(smoke) && smoke > 0) smokeRun(Math.min(smoke, MAX_SMOKE));
 }

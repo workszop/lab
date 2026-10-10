@@ -30,12 +30,31 @@ const pen = {
      minTaper strokes thinner than this are drawn plain     scribble crayon-scribble stride & width
      stipple  dot size boost */
   w: 1, wob: 1, minTaper: 0, scribble: 1, stipple: 1,
+  /* the quiet zone: a polygon (or null) texture keeps out of — the eyes, nose and mouth of a face,
+     so hatching, dots and scribbled washes never compete with the expression */
+  quiet: null,
+  /* the card the sheet dealt this cell from its motif deck (pooled() returns it), or null */
+  pool: null,
   /* the user's hand on the pen (sheet controls; not touched by reset): line weight, wobble,
      drawing zoom, color punch and fill messiness of the washes */
   user: { w: 1, wob: 1, zoom: 1, color: 0, fill: 0 },   // color: 0 natural … 1 vibrant · fill: 0 accurate … 1 messy
-  seed(s) { this.R = mulberry32(s); },
-  reset() { Object.assign(this, { ink: INK, w: 1, wob: 1, minTaper: 0, scribble: 1, stipple: 1 }); },
+  /* phases and locks — how "variations of this drawing" work. A drawing groups its decisions into
+     named phases (silhouette, expression, palette, accessories, detail) by calling pen.phase(name)
+     at each boundary; every phase gets its own random stream, seeded from the drawing's seed, the
+     phase name and how many times that phase has been entered. When the sheet locks a phase
+     (pen.locks[name] = true) the stream is seeded from pen.lockBase instead — the seed of the
+     drawing being varied — so the locked decisions come out identical while everything else rolls anew */
+  own: 0, lockBase: null, locks: {}, phases: {},
+  seed(s) { this.own = s >>> 0; this.phases = {}; this.R = mulberry32(this.own); },
+  phase(name) {
+    const n = (this.phases[name] = (this.phases[name] || 0) + 1);
+    const base = this.lockBase != null && this.locks[name] ? this.lockBase : this.own;
+    this.R = mulberry32((base ^ strHash(name) ^ Math.imul(n, 0x9E3779B1)) >>> 0);
+  },
+  reset() { Object.assign(this, { ink: INK, w: 1, wob: 1, minTaper: 0, scribble: 1, stipple: 1, quiet: null }); },
 };
+/* a small string hash (FNV-1a), for the phase names */
+function strHash(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
 
 /* ---------- seedable random ---------- */
 function mulberry32(seed) {
@@ -57,6 +76,22 @@ function wpick(table) {
   let r = pen.R() * total;
   for (const k of keys) { r -= table[k]; if (r < 0) return k; }
   return keys[keys.length - 1];
+}
+/* the motif pick of a sheet that deals a deck: rolls exactly like wpick (so the random stream is the
+   same either way) but answers with the card the sheet dealt this cell, when there is one */
+function pooled(table) {
+  const rolled = wpick(table);
+  return pen.pool != null && table[pen.pool] > 0 ? pen.pool : rolled;
+}
+/* is (x, y) inside the quiet zone? (ray casting) */
+function inQuiet(x, y) {
+  const q = pen.quiet; if (!q) return false;
+  let inside = false;
+  for (let i = 0, j = q.length - 1; i < q.length; j = i++) {
+    const [xi, yi] = q[i], [xj, yj] = q[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 /* ---------- the wobbly pen ---------- */
@@ -144,9 +179,36 @@ function strokeTapered(p, closed, base) {
   pen.ctx.beginPath(); pen.ctx.moveTo(ml[0], ml[1]); pen.ctx.lineTo(last[0], last[1]); pen.ctx.stroke();
 }
 
+/* ---------- line hierarchy ----------
+   three weights of line, so a drawing reads at a glance: the silhouette (outer contour) heaviest and
+   steadiest, structure (features, limbs, parts) as drawn, texture (hatch, strands, dots) thin and
+   in ink thinned toward the paper — never by alpha, which would show every tapered joint */
+const ROLE = {
+  silhouette: { w: 1.3,  wob: 0.85, thin: 0 },
+  structure:  { w: 1,    wob: 1,    thin: 0 },
+  texture:    { w: 0.62, wob: 1.1,  thin: 0.32 },
+};
+const MIX_CACHE = new Map();
+/* ink mixed toward the paper by k (0 = the ink, 1 = the paper) */
+function thinInk(hex, k) {
+  if (!(k > 0) || !/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  const key = k + hex + pen.base;
+  if (MIX_CACHE.has(key)) return MIX_CACHE.get(key);
+  const to = /^#[0-9a-f]{6}$/i.test(pen.base) ? pen.base : '#ffffff';
+  const a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16);
+  const ch = sh => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * k);
+  const out = '#' + [16, 8, 0].map(sh => ch(sh).toString(16).padStart(2, '0')).join('');
+  MIX_CACHE.set(key, out);
+  return out;
+}
+
 /* sketch a polyline; fill:true fills with ink, fillColor overrides (e.g. BASE to hide
-   what is behind); wash lays rough colour under the line; taper:false gives a plain stroke */
-function sketch(pts, { wob = 1.4, width = 2.2, closed = false, fill = false, color, fillColor, wash, taper = true } = {}) {
+   what is behind); wash lays rough colour under the line; taper:false gives a plain stroke;
+   role picks the line's weight in the hierarchy (silhouette | structure | texture) */
+function sketch(pts, { wob = 1.4, width = 2.2, closed = false, fill = false, color, fillColor, wash, taper = true, role = 'structure' } = {}) {
+  const r = ROLE[role] || ROLE.structure;
+  width *= r.w; wob *= r.wob;
+  if (r.thin) color = thinInk(color || pen.ink, r.thin);
   const w = wobblePts(pts, wob, closed);
   penStyle(width, color);
   if (fill) { tracePath(w, closed); pen.ctx.fillStyle = fillColor || color || pen.ink; pen.ctx.fill(); }
@@ -154,6 +216,64 @@ function sketch(pts, { wob = 1.4, width = 2.2, closed = false, fill = false, col
   penStyle(width, color);
   if (!taper || w.length < 4 || width < pen.minTaper) { tracePath(w, closed); pen.ctx.stroke(); return; }
   strokeTapered(w, closed, pen.ctx.lineWidth);
+}
+
+/* a second, lighter pass over part of a line — the way a hand firms up an overlap, the shadow side of
+   a form or a feature it cares about. span is the fraction of the polyline gone over (from a random
+   start, or `at` in 0..1 to centre it on a spot); the pass sits a hair off the first */
+function retrace(pts, { closed = false, width = 2, wob = 1.4, span = 0.45, at, color, role } = {}) {
+  const n = pts.length; if (n < 2) return;
+  const m = closed ? n + 1 : n;
+  const seq = closed ? [...pts, pts[0]] : pts;
+  const count = Math.max(2, Math.round(m * span));
+  const start = at != null ? Math.round(Math.max(0, Math.min(m - count, at * m - count / 2))) : ri(0, m - count);
+  const ox = rf(-1.5, 1.5), oy = rf(-1.5, 1.5);
+  const part = seq.slice(start, start + count).map(([x, y]) => [x + ox, y + oy]);
+  sketch(part, { width: width * 0.55, wob: wob * 1.5, color, role });
+}
+
+/* ---------- texture that describes the material: direction fields ----------
+   each returns (x, y) → angle, so hatching and scribbles can follow the parting of hair, the fall
+   of cloth, the contour of a body or the turn of a form */
+const field = {
+  down: (lean = 0) => () => Math.PI / 2 + lean,                                  // cloth: straight down, leaning a little
+  radial: (px, py) => (x, y) => Math.atan2(y - py, x - px),                      // hair: away from the parting / crown
+  contour: (cx, cy, rx, ry) => (x, y) => Math.atan2((y - cy) / ry, (x - cx) / rx) + Math.PI / 2,   // fur, form: along the ellipse
+  along: (ax, ay, bx, by) => () => Math.atan2(by - ay, bx - ax),                 // a limb, a fold
+  blend: (fa, fb, k) => (x, y) => { const a = fa(x, y), b = fb(x, y); return a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k; },
+};
+/* short strokes inside a region, each following the field where it starts, bending a little with it;
+   region is a polygon (clip), count strokes of about len; opts: color, width, role (texture), curl */
+function hatchAlong(region, count, len, dir, { color, width, role = 'texture', curl = 0.35, wob = 1 } = {}) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y] of region) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  pen.ctx.save(); tracePath(wobblePts(region, 1, true), true); pen.ctx.clip();
+  for (let i = 0; i < count; i++) {
+    const x = rf(x0, x1), y = rf(y0, y1);
+    if (inQuiet(x, y)) continue;
+    const l = len * rf(0.6, 1.3), a0 = dir(x, y) + rf(-0.18, 0.18);
+    const mx = x + Math.cos(a0) * l * 0.5, my = y + Math.sin(a0) * l * 0.5;
+    const a1 = a0 + (dir(mx, my) - a0) * curl;
+    sketch([[x, y], [mx, my], [mx + Math.cos(a1) * l * 0.5, my + Math.sin(a1) * l * 0.5]], { wob, width: width || rf(1.2, 2), color, role });
+  }
+  pen.ctx.restore();
+}
+/* shading that follows the form: contour hatching on the shadow side of an ellipse-ish region
+   (side −1 left / 1 right), denser toward the edge, none where the light falls */
+function formShade(region, cx, cy, rx, ry, side, n, len = 12, opts = {}) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y] of region) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const dir = field.contour(cx, cy, rx, ry);
+  pen.ctx.save(); tracePath(wobblePts(region, 1, true), true); pen.ctx.clip();
+  for (let i = 0, tries = n * 3; i < n && tries > 0; tries--) {
+    const x = rf(x0, x1), y = rf(y0, y1);
+    const u = (x - cx) / rx * side, d = Math.hypot((x - cx) / rx, (y - cy) / ry);   // toward the shadow side, and how near the rim
+    if (u < 0.15 || pen.R() > u * (0.4 + 0.6 * d) || inQuiet(x, y)) continue;
+    i++;
+    const l = len * rf(0.7, 1.3), a = dir(x, y) + rf(-0.15, 0.15);
+    sketch([[x - Math.cos(a) * l / 2, y - Math.sin(a) * l / 2], [x, y], [x + Math.cos(a) * l / 2, y + Math.sin(a) * l / 2]], { wob: 1, width: rf(1.1, 1.8), role: 'texture', ...opts });
+  }
+  pen.ctx.restore();
 }
 
 /* ---------- color punch of the washes (pen.user.color) ---------- */
@@ -219,9 +339,9 @@ function washPts(pts, { color, alpha = 0.75, mode = 'flat', grow = 1, dx, dy, wo
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [x, y] of wp) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
     const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, diag = Math.hypot(x1 - x0, y1 - y0) / 2 + 6;
-    const ang = rf(-1.0, -0.4), ux = Math.cos(ang), uy = Math.sin(ang), px = -uy, py = ux;
     const step = rf(6, 9) * pen.scribble, lw = rf(3.5, 6.5) * pen.scribble;
     pen.ctx.strokeStyle = color; pen.ctx.lineCap = 'round';
+    const ang = rf(-1.0, -0.4), ux = Math.cos(ang), uy = Math.sin(ang), px = -uy, py = ux;
     for (let d = -diag; d <= diag; d += step) {
       const a = [mx + px * d - ux * diag, my + py * d - uy * diag], b = [mx + px * d + ux * diag, my + py * d + uy * diag];
       pen.ctx.lineWidth = lw * rf(0.7, 1.3);
@@ -274,24 +394,28 @@ function arcPts(cx, cy, rx, ry, a0, a1, lump = 0.05, n = 12) {
   return pts;
 }
 
-/* dots — for stubble, tweed caps, freckles */
+/* dots — for stubble, tweed caps, freckles; texture, so a little thinner than the ink, and kept out
+   of the quiet zone */
 function stipple(cx, cy, rx, ry, count, size = 1.2, color) {
-  penStyle(1, color);
+  penStyle(1, thinInk(color || pen.ink, ROLE.texture.thin * 0.6));
   for (let i = 0; i < count; i++) {
     const a = pen.R() * Math.PI * 2, d = Math.sqrt(pen.R());
     const x = cx + Math.cos(a) * rx * d, y = cy + Math.sin(a) * ry * d;
+    if (inQuiet(x, y)) continue;
     pen.ctx.beginPath();
     pen.ctx.arc(x, y, rf(0.5, size) * pen.stipple, 0, 7);
     pen.ctx.fill();
   }
 }
 
-/* short hatch strokes inside a box — for scribbled hair, grey beards */
-function hatch(x0, y0, x1, y1, count, ang, len, color) {
+/* short hatch strokes inside a box — for scribbled hair, grey beards; texture weight, out of the
+   quiet zone; ang may be a direction field (x, y) → angle */
+function hatch(x0, y0, x1, y1, count, ang, len, color, role = 'texture') {
   for (let i = 0; i < count; i++) {
     const x = rf(x0, x1), y = rf(y0, y1);
-    const a = ang + rf(-0.25, 0.25), l = len * rf(0.6, 1.3);
-    line(x, y, x + Math.cos(a) * l, y + Math.sin(a) * l, { wob: 1, width: rf(1.2, 2), color });
+    const a = (typeof ang === 'function' ? ang(x, y) : ang) + rf(-0.25, 0.25), l = len * rf(0.6, 1.3);
+    if (inQuiet(x, y)) continue;
+    line(x, y, x + Math.cos(a) * l, y + Math.sin(a) * l, { wob: 1, width: rf(1.2, 2), color, role });
   }
 }
 

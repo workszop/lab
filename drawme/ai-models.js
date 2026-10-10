@@ -10,11 +10,11 @@
   'use strict';
 
   var AI_MODEL_CATALOG = {
-    defaultProvider: 'openai',
+    defaultProvider: 'claude',
     providers: {
       gemini: {
         label: 'Gemini',
-        models: ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview'],
+        models: ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-3.5-flash-lite'],
         keyPlaceholder: 'AIza…',
         keyUrl: 'https://aistudio.google.com/apikey',
         // Task 13 (key-shape guard): what a Gemini key looks like, used to warn/auto-heal
@@ -29,10 +29,10 @@
       },
       openai: {
         label: 'OpenAI',
-        // Most-capable-first order (sol, terra, luna); the default model is
+        // Most-capable-first order (sol, luna); the default model is
         // GPT Luna via defaultModel below, not by reordering this list.
-        models: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
-        defaultModel: 'gpt-5.6-luna',
+        models: ['gpt-6.1-sol', 'gpt-6-luna'],
+        defaultModel: 'gpt-6-luna',
         keyPlaceholder: 'sk-…',
         keyUrl: 'https://platform.openai.com/api-keys',
         // negative lookahead excludes Claude's sk-ant- keys, which otherwise share the sk- prefix
@@ -44,7 +44,11 @@
       },
       claude: {
         label: 'Claude',
-        models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
+        models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-5-5'],
+        defaultModel: 'claude-haiku-5-5',
+        // Models that think by default but accept thinking:{type:'disabled'} at their
+        // default effort: the judge's 500-token budget then goes entirely to the answer.
+        thinkingOptional: ['claude-haiku-5-5'],
         keyPlaceholder: 'sk-ant-…',
         keyUrl: 'https://console.anthropic.com/settings/keys',
         keyPattern: /^sk-ant-/,
@@ -54,6 +58,17 @@
         listPath: 'data',
       },
     },
+  };
+
+  /* freeModels / isFreeModel(provider, model): models that run without the visitor's
+     key, through the owner's proxy (see app.js judgeFree). Pattern from
+     ~/git-claude/zen/index.html (FREE_MODELS / isFreeModel). Deliberately
+     unadvertised: each sits in its provider's normal models list, is never a default,
+     and no UI text marks it; every key gate calls isFreeModel first. */
+  AI_MODEL_CATALOG.freeModels = { gemini: ['gemini-3.5-flash-lite'] };
+  AI_MODEL_CATALOG.isFreeModel = function isFreeModel(provider, model) {
+    var list = AI_MODEL_CATALOG.freeModels[provider] || [];
+    return typeof model === 'string' && list.indexOf(model) >= 0;
   };
 
   /* keyLooksLike(key) -> providerId|null (Task 13, pure, Node-testable via require).
@@ -109,7 +124,15 @@
      keyless and the LAST move's destination now has a key, the selected provider
      switches there too. Idempotent: a second call on the now-healed settings is a
      no-op, since every healed key now matches its new slot's own pattern. Never
-     logs a key value. */
+     logs a key value.
+
+     It also clears a slot holding an EXACT copy of the key already sitting in its
+     rightful slot (e.g. the Gemini key under claude as well as under gemini). That
+     shape comes from a browser password manager filling the key field: it fires a
+     real 'input' event, so the fill is saved under whichever provider is selected.
+     Clearing a copy loses nothing and leaves the selected provider alone; the
+     cleared slot ids are returned in `cleared`. A different key in the wrong slot
+     is still left in place for the inline warning, since it may be the only copy. */
   AI_MODEL_CATALOG.healKeys = function healKeys(settings) {
     var providerIds = Object.keys(AI_MODEL_CATALOG.providers);
     var keys = {};
@@ -118,6 +141,7 @@
     });
     var provider = settings && settings.provider;
     var lastHeal = null;
+    var cleared = [];
     var movedAny = true;
     while (movedAny) {
       movedAny = false;
@@ -129,6 +153,7 @@
         if (ownPattern && ownPattern.test(key)) continue; // fits its own slot already – nothing to heal
         var target = AI_MODEL_CATALOG.keyLooksLike(key);
         if (!target || target === p) continue; // no unambiguous match elsewhere (garbage key) – leave it alone
+        if (keys[target] === key) { keys[p] = ''; cleared.push(p); continue; } // duplicate of a correctly-slotted key
         if (keys[target]) continue; // destination occupied – never overwrite a non-empty slot
         keys[target] = key;
         keys[p] = '';
@@ -137,10 +162,14 @@
         break; // restart the scan from the top so ordering never masks a second heal
       }
     }
-    if (lastHeal && !keys[provider] && keys[lastHeal.to]) provider = lastHeal.to;
+    /* a free model on the selected provider needs no key, so a keyless slot there is
+       no reason to move the visitor off it */
+    var selectedIsFree = AI_MODEL_CATALOG.isFreeModel(provider, settings && settings.models && settings.models[provider]);
+    if (lastHeal && !keys[provider] && keys[lastHeal.to] && !selectedIsFree) provider = lastHeal.to;
     return {
       settings: { provider: provider, models: settings && settings.models, keys: keys },
       healed: lastHeal,
+      cleared: cleared,
     };
   };
 

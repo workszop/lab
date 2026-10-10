@@ -62,6 +62,12 @@ var PROVIDERS = Object.keys(window.AI_MODEL_CATALOG.providers);
 var PROVIDER_LABELS = {};
 PROVIDERS.forEach(function (p) { PROVIDER_LABELS[p] = window.AI_MODEL_CATALOG.providers[p].label; });
 var JUDGE_RETRY_MS = 1500;               // judge failure path (spec §6): retry once after this delay
+/* Proxy for the catalog's freeModels (no visitor key; the Worker adds its own).
+   Never shown on screen: free-model failures use the fixed messages below. */
+var FREE_MODEL_WORKER_URL = 'https://agent.andrzey-jankowski.workers.dev/';
+var FREE_MODEL_FAILED = 'The model did not answer. Try again.';
+var FREE_MODEL_TRUNCATED = 'The answer was cut short.';
+var FREE_MODEL_BLOCKED = 'The model declined to answer.';
 
 /* providerMap(valueFactory) -> { [providerId]: valueFactory() } for every provider in
    the catalog. Used to build per-provider bookkeeping objects (discovered models,
@@ -122,9 +128,16 @@ var RETIRED_MODELS = {
    (gpt-5.6-luna): before the catalog gained defaultModel, the silently-stored default
    was the list's first entry (sol), and the RETIRED_MODELS migration can't touch it
    because sol is still a curated model. The version gate makes the migration run at
-   most once, so a user who later picks sol ON PURPOSE keeps it (their save stamps v2). */
-var SETTINGS_VERSION = 2;
-var LEGACY_DEFAULT_MODELS = { openai: 'gpt-5.6-sol' };
+   most once, so a user who later picks sol ON PURPOSE keeps it (their save stamps v2).
+   Version 3 does the same for the next default change: loadSettings stamps the default
+   into storage on a first visit, so a stored 'gpt-5.6-luna' is almost always that
+   silent default, and it moves to the catalog default (gpt-6-luna) once.
+   LEGACY_DEFAULT_MODELS maps each version to the defaults it retires. */
+var SETTINGS_VERSION = 3;
+var LEGACY_DEFAULT_MODELS = {
+  2: { openai: 'gpt-5.6-sol' },
+  3: { openai: 'gpt-5.6-luna' },
+};
 
 // ─── State ───
 
@@ -137,6 +150,7 @@ var initialSettings = loadSettings(); // localStorage['draw.settings'] + ['draw.
    both already see the corrected shape. window.AI_MODEL_CATALOG.healKeys is pure
    (see ai-models.js); persisting the result (if it actually healed something)
    happens once App/saveSettings/saveKeys exist, right below the App object. */
+var preHealProvider = initialSettings.provider;
 var initialHeal = window.AI_MODEL_CATALOG.healKeys(initialSettings);
 /* healKeys only knows provider/models/keys – re-attach the fields it doesn't carry */
 initialHeal.settings.manualMode = initialSettings.manualMode;
@@ -148,7 +162,8 @@ initialSettings = initialHeal.settings;
    built yet at this point in the file (it's derived from PROVIDERS below), so
    read the label straight off the catalog. */
 var initialHealNote = initialHeal.healed ?
-  'Moved your ' + window.AI_MODEL_CATALOG.providers[initialHeal.healed.to].label + ' key and switched provider.' :
+  'Moved your ' + window.AI_MODEL_CATALOG.providers[initialHeal.healed.to].label + ' key' +
+    (initialSettings.provider !== preHealProvider ? ' and switched provider.' : '.') :
   null;
 
 var App = {
@@ -220,8 +235,9 @@ var App = {
 /* Task 13 auto-heal, persisted: if healKeys() above actually moved a key, write
    the corrected settings/keys back to localStorage immediately (before the first
    render) so the fix survives without the user having to touch anything, and a
-   reload doesn't repeat work loadSettings()+healKeys() already made idempotent. */
-if (initialHeal.healed) {
+   reload doesn't repeat work loadSettings()+healKeys() already made idempotent.
+   A cleared duplicate (see healKeys) is persisted the same way. */
+if (initialHeal.healed || initialHeal.cleared.length) {
   saveSettings();
   saveKeys();
 }
@@ -444,11 +460,13 @@ function loadSettings() {
         models[p] = defaultModelFor(p);
         migrated = true;
       }
-      /* one-time (version-gated, see SETTINGS_VERSION) migration of a pre-defaultModel
-         stored default to the catalog default – e.g. openai gpt-5.6-sol -> gpt-5.6-luna */
-      if (storedVersion < 2 && models[p] === LEGACY_DEFAULT_MODELS[p]) {
-        models[p] = defaultModelFor(p);
-        migrated = true;
+      /* one-time (version-gated, see SETTINGS_VERSION) migration of a silently stored
+         old default to the catalog default – e.g. openai gpt-5.6-luna -> gpt-6-luna */
+      for (var version in LEGACY_DEFAULT_MODELS) {
+        if (storedVersion < Number(version) && models[p] === LEGACY_DEFAULT_MODELS[version][p]) {
+          models[p] = defaultModelFor(p);
+          migrated = true;
+        }
       }
     });
     if (migrated || storedVersion < SETTINGS_VERSION) {
@@ -493,6 +511,17 @@ function saveKeys() {
 function hasKey(provider) {
   var key = App.state.keys[provider];
   return typeof key === 'string' && key.trim().length > 0;
+}
+
+/* isFreeModel(provider, model) – thin wrapper over the catalog helper; a free model
+   runs through the proxy, so every key gate below checks this first. */
+function isFreeModel(provider, model) {
+  return window.AI_MODEL_CATALOG.isFreeModel(provider, model);
+}
+
+/* canJudge(provider) – the selected model can run: a free model, or a stored key. */
+function canJudge(provider) {
+  return isFreeModel(provider, App.state.models[provider]) || hasKey(provider);
 }
 
 // ─── Helpers: AI model discovery (Task 9, adapted from slidegen/pure.js) ───
@@ -619,6 +648,8 @@ function dataUrlToBase64(dataUrl) {
    One adapter per provider behind this single interface; every adapter rejects
    with a short, non-key-leaking Error on a non-2xx response or an unreadable body. */
 function judge(provider, model, key, photoDataUrl, gridDataUrl, prompt) {
+  // a free model always goes to the proxy, even when a key for its provider is stored
+  if (isFreeModel(provider, model)) return judgeFree(model, photoDataUrl, gridDataUrl, prompt);
   if (provider === 'gemini') return judgeGemini(model, key, photoDataUrl, gridDataUrl, prompt);
   if (provider === 'openai') return judgeOpenAI(model, key, photoDataUrl, gridDataUrl, prompt);
   if (provider === 'claude') return judgeClaude(model, key, photoDataUrl, gridDataUrl, prompt);
@@ -690,6 +721,45 @@ function judgeGemini(model, key, photoDataUrl, gridDataUrl, prompt) {
   });
 }
 
+/* judgeFree(model, ...) – a free model through FREE_MODEL_WORKER_URL, OpenAI chat
+   shape, no key (the Worker adds its own). Every failure rejects with a fixed message,
+   never the response body, which can carry the Worker's host. */
+function judgeFree(model, photoDataUrl, gridDataUrl, prompt) {
+  var body = {
+    model: model,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: prompt },
+        { type: 'image_url', image_url: { url: photoDataUrl } },
+        { type: 'image_url', image_url: { url: gridDataUrl } },
+      ],
+    }],
+  };
+  return fetch(FREE_MODEL_WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).catch(function () {
+    throw new Error(FREE_MODEL_FAILED);
+  }).then(function (res) {
+    return res.json().catch(function () { return null; }).then(function (data) {
+      if (!res.ok || !data || data.error) throw new Error(FREE_MODEL_FAILED);
+      var choice = data.choices && data.choices[0];
+      var finish = choice && choice.finish_reason;
+      if (finish === 'length') throw new Error(FREE_MODEL_TRUNCATED);
+      if (finish === 'content_filter') throw new Error(FREE_MODEL_BLOCKED);
+      var content = choice && choice.message && choice.message.content;
+      if (Array.isArray(content)) {
+        content = content.filter(function (p) { return p && typeof p.text === 'string'; })
+          .map(function (p) { return p.text; }).join('');
+      }
+      if (typeof content !== 'string' || !content) throw new Error(FREE_MODEL_FAILED);
+      return content;
+    });
+  });
+}
+
 function judgeOpenAI(model, key, photoDataUrl, gridDataUrl, prompt) {
   var url = 'https://api.openai.com/v1/chat/completions';
   var body = {
@@ -736,6 +806,9 @@ function judgeClaude(model, key, photoDataUrl, gridDataUrl, prompt) {
       ],
     }],
   };
+  if ((window.AI_MODEL_CATALOG.providers.claude.thinkingOptional || []).indexOf(model) >= 0) {
+    body.thinking = { type: 'disabled' };
+  }
   return fetch(url, {
     method: 'POST',
     headers: {
@@ -753,8 +826,11 @@ function judgeClaude(model, key, photoDataUrl, gridDataUrl, prompt) {
     }
     return res.json();
   }).then(function (data) {
-    var text = data && data.content && data.content[0] && data.content[0].text;
-    if (typeof text !== 'string') throw new Error('Claude reply had no text.');
+    /* thinking models may lead with a thinking block, so collect the text blocks
+       instead of assuming content[0] is the answer */
+    var text = (data && data.content || []).filter(function (b) { return b.type === 'text'; })
+      .map(function (b) { return b.text; }).join('');
+    if (!text) throw new Error('Claude reply had no text.');
     return text;
   });
 }
@@ -1203,6 +1279,8 @@ function render() {
   appEl.setAttribute('data-state', s.state);
   appEl.setAttribute('data-phase', s.phase || '');
   appEl.setAttribute('data-provider', s.provider);
+  appEl.setAttribute('data-model', s.models[s.provider] || '');
+  appEl.setAttribute('data-has-key', canJudge(s.provider) ? 'true' : 'false');
   appEl.setAttribute('data-manual', s.manualMode ? 'true' : 'false');
 
   /* render() rebuilds the whole DOM, which yanks focus (and the caret) out of
@@ -1579,7 +1657,10 @@ function renderSettingsPanel(s) {
   var keyRow = el('div', { class: 'settings-row' });
   keyRow.appendChild(el('label', { for: 'settings-key', text: PROVIDER_LABELS[s.provider] + ' API key' }));
   var keyInput = el('input', {
-    id: 'settings-key', type: 'password', autocomplete: 'off', spellcheck: 'false',
+    /* new-password, not off: Firefox and Chrome ignore autocomplete=off on password
+       fields and fill a saved login into whichever provider's field is showing,
+       which the 'input' commit below then saves under that provider */
+    id: 'settings-key', type: 'password', autocomplete: 'new-password', spellcheck: 'false',
     placeholder: catalogProvider.keyPlaceholder || '',
   });
   keyInput.value = s.keys[s.provider];
@@ -1903,9 +1984,11 @@ function startRun(manual) {
   var s = App.state;
   var provider = s.provider;
   var key = s.keys[provider];
+  var free = isFreeModel(provider, s.models[provider]);
 
-  /* a manual run needs no provider at all: skip the key heal/warning and the key gate */
-  if (key && !manual) {
+  /* a manual run needs no provider at all, and a free model needs no key: skip the
+     key heal/warning and the key gate for both */
+  if (key && !manual && !free) {
     var ownPattern = window.AI_MODEL_CATALOG.providers[provider].keyPattern;
     if (ownPattern && !ownPattern.test(key)) {
       var likely = window.AI_MODEL_CATALOG.keyLooksLike(key);
@@ -1947,7 +2030,7 @@ function startRun(manual) {
     }
   }
 
-  if (!manual && !hasKey(provider)) {
+  if (!manual && !canJudge(provider)) {
     App.set({
       settingsHighlight: true,
       settingsError: 'Add an API key for ' + PROVIDER_LABELS[provider] + ' to start a run, or switch Manual on to pick every sketch yourself.',
@@ -2195,7 +2278,10 @@ function onModelChange(value) {
   var models = {};
   for (var k in s.models) if (Object.prototype.hasOwnProperty.call(s.models, k)) models[k] = s.models[k];
   models[s.provider] = value;
-  App.set({ models: models });
+  var patch = { models: models };
+  // a free model needs no key, so a "missing key" warning from an earlier Start is stale
+  if (isFreeModel(s.provider, value)) { patch.settingsHighlight = false; patch.settingsError = null; }
+  App.set(patch);
   saveSettings();
 }
 

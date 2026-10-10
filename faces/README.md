@@ -11,7 +11,7 @@ open `index.html` (or any sheet) straight from disk.
 | `faces.html`, `figures.html`, `animals.html`, `tattoo.html`, `space.html`, `creatures.html` | one thin shell each: it loads its collection's JS and calls `Sheet.init(COLLECTIONS.<name>)` |
 | `faces.js`, `figures.js`, `animals.js`, `tattoo.js`, `space.js`, `creatures.js` | the collections: each sheet's drawing code in an IIFE that calls `Sheet.register(name, cfg)` |
 | `mix.html` | loads every collection and rolls, per cell, which hand draws it (seed salted per collection) |
-| `shared/pen.js` | the pen: seeded RNG, `sketch`/`line`/`arc`/`blobPts`/`washPts`/`stipple`/`hatch`/`dot`, and the `pen` state object (`ctx`, `R`, `ink`, `base`, multipliers) |
+| `shared/pen.js` | the pen: seeded RNG, `sketch`/`line`/`arc`/`blobPts`/`washPts`/`stipple`/`hatch`/`dot`, the line hierarchy (`role`), `retrace`, direction fields (`field.*`, `hatchAlong`, `formShade`), the quiet zone, phases and locks, and the `pen` state object (`ctx`, `R`, `ink`, `base`, multipliers) |
 | `shared/sheet.js` | the paper: canvas, grid of seeded cells, grain, redraw / save, the enlarge-one-drawing viewer, deep links, DOM contract |
 | `shared/chrome.css` | the reset, the branded top bar and the `.edu-btn` button, shared by the hub and the sheets |
 | `shared/palette.css` | the whole drawing palette: the shared marker box plus every collection's own tokens (cloth, fur, flash, space) — one source of truth, so the mix can draw anything |
@@ -34,8 +34,15 @@ open `index.html` (or any sheet) straight from disk.
   (0 natural → 1 vibrant), `fill` (0 accurate → 1 messy: a careless marker that stops short of the
   line or runs past it). They redraw live, stick across sheets (localStorage) and travel in the URL
   (`?w=1.5&wob=0.7&zoom=1.2&color=0.7&fill=0.8`); `reset` returns to the sheet's own hand.
+- **Variations** (in the viewer; `v`) redraws the whole sheet as 48 takes on the drawing you are looking at.
+  A strip above the paper holds the locks — `silhouette`, `expression`, `palette`, `accessories` (the ones
+  that hand supports) — tick one and that side of the drawing stays put while the rest rolls anew; the
+  silhouette is locked to begin with. Redraw keeps varying; **Back to sheet** (`v` again) returns to a
+  sheet of different drawings. The mix locks the hand with the silhouette.
+- Sheets with a motif table (animals, tattoo, space, creatures, mix) deal their 48 cells from a shuffled
+  deck in proportion to the weights, so no kind crowds in three times while another never shows.
 - Deep links: `faces.html?seed=123` reproduces a sheet (`seed=0` is a seed too), `&open=7` opens the 7th
-  drawing (reading order); `index.html#space` (a legacy link) redirects to its sheet, and
+  drawing (reading order), `&vary=<seed>&lock=silhouette,palette` lands on variations of that drawing; `index.html#space` (a legacy link) redirects to its sheet, and
   `index.html?seed=123` draws the tile previews at that seed and passes it to whichever sheet is opened.
 
 ## Writing a sheet
@@ -55,6 +62,25 @@ string field becomes the viewer label). `big` is true when the viewer is drawing
 viewer scales, so a design may skip its paper-only tilt. Paint "paper" with `pen.base`, never `PAPER`:
 on the sheet they are equal, on a transparent export `pen.base` is near-white.
 
+**Phases and locks.** A drawing groups its decisions into named phases by calling `pen.phase(name)` at
+each boundary — `silhouette` (kind, proportions, pose, outline points), `expression` (mood, eyes, mouth),
+`palette` (ink, nib, colours), `accessories` (what is worn or held), `detail` (the rest); a part may
+re-enter a phase. Every phase is its own random stream, seeded from the drawing's seed and the phase
+name; when the sheet varies one drawing, a locked phase is seeded from that drawing instead, so what is
+locked comes out identical. Register the locks a hand honours: `Sheet.register(name, { …, locks: [...] })`.
+A hand with a motif table picks with `pooled(TABLE)` and registers `pool: TABLE`; the sheet deals the deck.
+
+**Line hierarchy and texture.** `sketch(pts, { role })` takes `silhouette` (heavier, steadier: the outer
+contour of the main masses), `structure` (as drawn: features, limbs, parts) or `texture` (thin, ink thinned
+toward the paper: strands, hatch, dots — `hatch` and `stipple` default to it). `retrace(pts, { span, at })`
+goes over part of a line a second time, lighter: use it at overlaps, on the shadow side and at expressive
+features, not everywhere. Texture follows the material through direction fields — `field.down(lean)` for
+cloth, `field.radial(px, py)` for hair falling from its parting, `field.contour(cx, cy, rx, ry)` for fur and
+form, `field.along(...)` for a limb or a fold, `field.blend(a, b, k)` — fed to `hatchAlong(region, n, len, dir)`,
+`formShade(region, …, side, n)` (contour hatching on the shadow side). Marker washes stay flat or one
+diagonal scribble; faces are always washed flat.
+`pen.quiet = polygon` keeps all of that out of a face's features until it is cleared.
+
 Everything the drawing code shares lives in one object, `pen`: `pen.ctx` (the canvas in hand),
 `pen.R` (use `rf`/`ri`/`pick`/`chance`/`wpick`), `pen.ink`, `pen.base`, and the per-drawing
 multipliers `w`, `wob`, `minTaper`, `scribble`, `stipple`; `pen.reset()` runs before every drawing.
@@ -67,4 +93,5 @@ so parts are moved, never reordered, and `?probe=1`'s pixel hash (checked by `..
 `#sheet[data-state]` (`drawing` | `ready`), `#sheet[data-seed]`, `#sheet[data-census]` (JSON counts),
 `#sheet[data-hash]` (pixel hash, only with `?probe=1`), `#sheet[data-smoke]` (with `?smoke=N`: N extra seeds
 drawn in-page, capped at 200, `{ seeds, errors }`), `#big[data-index|data-seed|data-label]` for the enlarged drawing,
-`#sheet[data-controls]` (the pen settings in force), on the index: `#tiles[data-state|data-seed]` and each `.tile[data-collection|data-seed|data-state]`. `../smoke.sh` reads exactly these (`SMOKE=20` seeds per sheet by default). While a pen slider is being dragged the sheet renders a low-resolution preview and stays `data-state="drawing"`; only the settled full-resolution draw publishes `ready` and the contract.
+`#sheet[data-controls]` (the pen settings in force), `#sheet[data-vary]` (`{ seed, locks }` while the sheet
+shows variations of one drawing), on the index: `#tiles[data-state|data-seed]` and each `.tile[data-collection|data-seed|data-state]`. `../smoke.sh` reads exactly these (`SMOKE=20` seeds per sheet by default). While a pen slider is being dragged the sheet renders a low-resolution preview and stays `data-state="drawing"`; only the settled full-resolution draw publishes `ready` and the contract.
