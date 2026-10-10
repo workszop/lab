@@ -283,16 +283,29 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   margin-right: 4px; padding-right: 14px; border-right: 1px solid var(--line-2);
 }
 
-/* ─── Page header: left-aligned on the workbench column (same 1420px cap and
-   30px gutter as #app), solid-ink display title, full-width lead, rule under ─── */
-.page-header { max-width: 1420px; margin: 0 auto; padding: 36px 30px 28px; text-align: left;
-  border-bottom: 1px solid var(--line-2); }
+/* ─── Hero band: the app's lab colour (red, as on the landing card) as a full-bleed
+   solid block; title + lead left-aligned on the workbench column (same 1420px cap
+   and 30px gutter as #app), white text, the brush icon as ghost art ─── */
+.hero {
+  --tone: var(--red-soft); --tone-ink: var(--red-ink);
+  position: relative; overflow: hidden;
+  background: var(--tone); color: var(--tone-ink);
+}
+.hero-ghost {
+  position: absolute; right: max(30px, calc(50% - 660px)); top: 50%;
+  width: 230px; height: 230px; transform: translateY(-46%) rotate(-6deg);
+  color: color-mix(in srgb, var(--tone-ink) 22%, transparent); pointer-events: none;
+}
+.page-header { position: relative; max-width: 1420px; margin: 0 auto; padding: 40px 30px 42px; text-align: left; }
 .app-title {
   font-family: var(--font-display); font-weight: 800;
   font-size: clamp(2.3rem, 5vw, 3.3rem); letter-spacing: -0.025em;
-  line-height: 1.05; color: var(--ink); margin: 0 0 14px;
+  line-height: 1.05; color: inherit; margin: 0 0 14px;
 }
-.edu-lead { font-family: var(--font-sans); font-size: 1.15rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
+.edu-lead { font-family: var(--font-sans); font-size: 1.15rem; line-height: 1.6; color: inherit; margin: 0; }
+
+/* the workbench sits on a full-bleed stone band so the white panels read as cards */
+.work-band { background: var(--paper-2); border-bottom: 1px solid var(--line); }
 
 /* ─── Buttons: yellow primary with dark ink, neutral ghost ─── */
 .edu-btn {
@@ -318,7 +331,7 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   align-items: start;
   max-width: 1420px; /* sized so the 4x3 grid's bottom lands level with the settings (AI) panel's bottom */
   margin: 0 auto;
-  padding: 24px 30px 12px;
+  padding: 28px 30px 32px;
 }
 
 .panel {
@@ -351,6 +364,12 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
 }
 .done-panel > h2:first-child { align-self: stretch; margin-bottom: 0; }
+/* each side panel carries its own colour as a solid head strip (white text; dark on yellow) */
+.col-left > .panel:first-child > h2:first-child,
+.done-panel > h2:first-child { background: var(--yellow-soft); color: var(--yellow-ink); border-bottom: none; }
+.settings-panel > h2:first-child { background: var(--blue-soft); color: var(--blue-ink); border-bottom: none; }
+.col-right > .panel > h2:first-child { background: var(--green-soft); color: var(--green-ink); border-bottom: none; }
+.panel > h2:first-child { font-weight: 600; }
 
 .col-left { display: flex; flex-direction: column; gap: 14px; }
 
@@ -551,9 +570,8 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
 
 .edu-footer {
   max-width: 1420px;
-  margin: 12px auto 0;
-  padding: 12px 30px 24px;
-  border-top: 1px solid var(--line);
+  margin: 0 auto;
+  padding: 14px 30px 24px;
   color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 0.74rem;
@@ -575,7 +593,8 @@ body.edu { background: var(--paper); color: var(--ink); font-family: var(--font-
   .header-controls { margin-left: 0; width: 100%; }
   .header-controls-inner { width: 100%; justify-content: flex-start; }
   .progress-bar { max-width: none; }
-  .page-header { padding: 24px 14px 24px; }
+  .page-header { padding: 28px 14px 30px; }
+  .hero-ghost { width: 120px; height: 120px; right: -24px; top: auto; bottom: -28px; transform: rotate(-6deg); }
   #app {
     grid-template-columns: 1fr;
     padding: 12px 14px 8px;

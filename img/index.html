@@ -220,18 +220,38 @@
         .container {
             max-width: 1100px;
             margin: 0 auto;
-            padding: 34px 30px 70px;
+            padding: 40px 30px 70px;
         }
 
         /* ============================================================
-           Page header (solid-ink display title → full-width lead)
+           Hero band: the app's lab colour (blue, as on the landing card),
+           full-bleed solid block, white title + lead, ghost icon as art
            ============================================================ */
-        header.page-head {
-            text-align: left;
-            padding: 10px 0 36px;
-            margin-bottom: 2.5rem;
-            border-bottom: 1px solid var(--line-2);
+        .hero {
+            --tone: var(--blue-soft); --tone-ink: var(--blue-ink);
             position: relative;
+            overflow: hidden;
+            background: var(--tone);
+            color: var(--tone-ink);
+        }
+
+        .hero-ghost {
+            position: absolute;
+            right: max(30px, calc(50% - 520px));
+            top: 50%;
+            width: 220px; height: 220px;
+            transform: translateY(-50%) rotate(-8deg);
+            color: color-mix(in srgb, var(--tone-ink) 22%, transparent);
+            pointer-events: none;
+        }
+        .hero-ghost svg { width: 100%; height: 100%; stroke-width: 1.5; }
+
+        header.page-head {
+            position: relative;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 44px 30px 46px;
+            text-align: left;
         }
 
         h1.app-title {
@@ -240,21 +260,20 @@
             font-size: clamp(2.3rem, 5vw, 3.3rem);
             line-height: 1.05;
             letter-spacing: -.025em;
-            color: var(--ink);
+            color: inherit;
             margin-bottom: 14px;
         }
 
         .edu-lead {
             font-family: var(--font-sans);
-            color: var(--ink-2);
+            color: inherit;
             font-size: 1.15rem;
             line-height: 1.6;
             margin: 0;
         }
 
         .edu-lead span {
-            color: var(--ink);
-            font-weight: 600;
+            font-weight: 700;
         }
 
         /* ============================================================
@@ -276,13 +295,18 @@
 
         .upload-zone:hover, .upload-zone.dragover {
             background: var(--paper-2);
+            border-color: var(--blue-600);
             box-shadow: var(--shadow-md);
         }
 
+        /* icon sits in a solid yellow disc: the primary action of the empty page */
         .upload-icon {
-            display: block; width: 56px; height: 56px;
-            margin: 0 auto 1rem; color: var(--ink-2);
+            display: flex; align-items: center; justify-content: center;
+            width: 84px; height: 84px; border-radius: 50%;
+            margin: 0 auto 1rem;
+            background: var(--yellow); color: var(--yellow-ink);
         }
+        .upload-icon svg { width: 42px; height: 42px; }
 
         .upload-zone h3 {
             font-family: var(--font-display);
@@ -350,17 +374,25 @@
             box-shadow: var(--shadow-md);
         }
 
+        /* each card carries its own colour: a solid head strip plus a matching
+           explanation block (data-tone on .card) */
+        .card { --tone: var(--blue-soft); --tone-ink: var(--blue-ink); }
+        .card[data-tone="yellow"] { --tone: var(--yellow-soft); --tone-ink: var(--yellow-ink); }
+        .card[data-tone="green"]  { --tone: var(--green-soft);  --tone-ink: var(--green-ink); }
+        .card[data-tone="grape"]  { --tone: var(--play-grape);  --tone-ink: var(--blue-ink); }
+        .card[data-tone="red"]    { --tone: var(--red-soft);    --tone-ink: var(--red-ink); }
+
         .card-header {
             padding: 1rem 1.5rem;
-            background: var(--paper-2);
-            border-bottom: 1px solid var(--line);
+            background: var(--tone);
+            color: var(--tone-ink);
             display: flex;
             align-items: center;
             gap: 0.75rem;
         }
 
         .card-header .icon {
-            display: block; width: 22px; height: 22px; color: var(--ink);
+            display: block; width: 22px; height: 22px; color: inherit;
         }
 
         .card-header h2 {
@@ -369,7 +401,8 @@
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.14em;
-            color: var(--ink-2);
+            font-weight: 600;
+            color: inherit;
         }
 
         .card-body {
@@ -386,7 +419,7 @@
         }
 
         .metadata-item {
-            background: var(--paper);
+            background: var(--paper-2);
             padding: 1rem;
             border-radius: var(--r-sm);
             border: 1px solid var(--line);
@@ -596,7 +629,7 @@
             -webkit-appearance: none;
             width: 18px;
             height: 18px;
-            background: var(--surface);
+            background: var(--yellow);
             border: 2px solid var(--ink);
             border-radius: 50%;
             cursor: pointer;
@@ -606,7 +639,7 @@
         input[type="range"]::-moz-range-thumb {
             width: 18px;
             height: 18px;
-            background: var(--surface);
+            background: var(--yellow);
             border: 2px solid var(--ink);
             border-radius: 50%;
             cursor: pointer;
@@ -707,8 +740,8 @@
            Encoding explanation panel
            ============================================================ */
         .encoding-explanation {
-            background: var(--blue-soft);
-            color: var(--blue-ink);
+            background: var(--tone);
+            color: var(--tone-ink);
             padding: 1.1rem 1.25rem;
             border-radius: var(--r-lg);
             margin-top: 1rem;
@@ -717,7 +750,6 @@
         .encoding-explanation h4 {
             font-family: var(--font-display);
             font-weight: 700;
-            color: var(--blue-ink);
             margin-bottom: 0.5rem;
             font-size: 0.95rem;
         }
@@ -732,17 +764,16 @@
 
         .encoding-explanation p {
             font-family: var(--font-sans);
-            color: var(--blue-ink);
             font-size: 0.875rem;
             line-height: 1.6;
         }
 
         .encoding-explanation code {
-            background: rgba(255, 255, 255, 0.16);
+            background: color-mix(in srgb, var(--tone-ink) 16%, transparent);
             padding: 0.1rem 0.4rem;
             border-radius: var(--r-xs);
             font-family: var(--font-mono);
-            color: var(--blue-ink);
+            color: inherit;
         }
 
         /* ============================================================
@@ -751,7 +782,8 @@
         @media (max-width: 768px) {
             .edu-header-inner { padding: 8px 16px; }
             .container { padding: 28px 16px 50px; }
-            header.page-head { padding: 0 0 32px; }
+            header.page-head { padding: 32px 16px 34px; }
+            .hero-ghost { width: 120px; height: 120px; right: -24px; top: auto; bottom: -28px; transform: rotate(-8deg); }
             .upload-zone { padding: 2rem 1.25rem; }
         }
 
@@ -791,14 +823,18 @@
         </div>
     </header>
 
-    <div class="container">
+    <section class="hero edu-block">
+        <i class="hero-ghost" data-lucide="scan-search" aria-hidden="true"></i>
         <header class="page-head">
             <h1 class="app-title">Image Anatomy Explorer</h1>
             <p class="edu-lead">See what's <span>really</span> inside your images – metadata, raw bytes, and pixel-by-pixel colour.</p>
         </header>
+    </section>
+
+    <div class="container">
 
         <div class="upload-zone" id="uploadZone">
-            <i class="upload-icon" data-lucide="image-up" aria-hidden="true"></i>
+            <span class="upload-icon" aria-hidden="true"><i data-lucide="image-up"></i></span>
             <h3>Drop an image here</h3>
             <p>or click to browse (PNG, JPG, GIF, WebP)</p>
             <input type="file" id="fileInput" accept="image/*">
@@ -811,7 +847,7 @@
 
         <div class="explorer-grid" id="explorerGrid">
             <!-- Metadata Card -->
-            <div class="card">
+            <div class="card" data-tone="yellow">
                 <div class="card-header">
                     <i class="icon" data-lucide="clipboard-list" aria-hidden="true"></i>
                     <h2>File Metadata</h2>
@@ -820,7 +856,7 @@
                     <div class="metadata-grid" id="metadataGrid">
                         <!-- Populated by JS -->
                     </div>
-                    <div class="encoding-explanation">
+                    <div class="encoding-explanation edu-block">
                         <h4><i data-lucide="lightbulb" aria-hidden="true"></i>What is Metadata?</h4>
                         <p>Metadata is "data about data" – information stored alongside your image like file name, size, and format. The computer uses this to know how to read the file!</p>
                     </div>
@@ -828,7 +864,7 @@
             </div>
 
             <!-- Original vs Resized -->
-            <div class="card">
+            <div class="card" data-tone="green">
                 <div class="card-header">
                     <i class="icon" data-lucide="scaling" aria-hidden="true"></i>
                     <h2>Size Comparison</h2>
@@ -851,7 +887,7 @@
                             <img id="resizedPreview" class="preview-image" alt="Resized">
                         </div>
                     </div>
-                    <div class="encoding-explanation">
+                    <div class="encoding-explanation edu-block">
                         <h4><i data-lucide="lightbulb" aria-hidden="true"></i>How Resizing Works</h4>
                         <p>When you shrink an image, the computer must decide which pixels to keep. This is called <code>downsampling</code>. Making images smaller reduces file size but loses detail!</p>
                     </div>
@@ -859,7 +895,7 @@
             </div>
 
             <!-- Binary Data -->
-            <div class="card full-width">
+            <div class="card full-width" data-tone="grape">
                 <div class="card-header">
                     <i class="icon" data-lucide="binary" aria-hidden="true"></i>
                     <h2>Raw Binary Data (First 512 bytes)</h2>
@@ -882,7 +918,7 @@
                             <span>ASCII representation</span>
                         </div>
                     </div>
-                    <div class="encoding-explanation">
+                    <div class="encoding-explanation edu-block">
                         <h4><i data-lucide="lightbulb" aria-hidden="true"></i>What is Binary Data?</h4>
                         <p>Computers store everything as numbers. Each <code>byte</code> (8 bits) can hold a value from 0-255. Here we show bytes in <code>hexadecimal</code> (base-16) because it's more compact: <code>FF</code> = 255, <code>00</code> = 0. The first bytes often contain the file's "magic number" – a signature that identifies the file type!</p>
                     </div>
@@ -890,7 +926,7 @@
             </div>
 
             <!-- Pixel Explorer -->
-            <div class="card full-width">
+            <div class="card full-width" data-tone="red">
                 <div class="card-header">
                     <i class="icon" data-lucide="palette" aria-hidden="true"></i>
                     <h2>Pixel Explorer</h2>
@@ -934,7 +970,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="encoding-explanation">
+                    <div class="encoding-explanation edu-block">
                         <h4><i data-lucide="lightbulb" aria-hidden="true"></i>How Pixels Store Color</h4>
                         <p>Each pixel uses 3 numbers (0-255) for <code>Red</code>, <code>Green</code>, and <code>Blue</code>. Mixing these creates all colors! <code>R:255 G:0 B:0</code> = pure red. <code>R:255 G:255 B:255</code> = white. That's 256 × 256 × 256 = <strong>16.7 million</strong> possible colors!</p>
                         <p style="margin-top: 0.5rem;"><i class="inline-icon" data-lucide="search" aria-hidden="true"></i><strong>What you see above:</strong> The entire image downsampled to a tiny grid. Lower resolution = fewer pixels = you can see each one! This is exactly how computer vision models "see" images.</p>
