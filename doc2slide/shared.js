@@ -377,7 +377,7 @@ function mountAiSelector({ chip, getLang, images = false }) {
       </div>
       <div class="ai-field">
         <label for="aiKey">${t.keyLabel} — ${info.label}</label>
-        <input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="${info.keyPlaceholder}" />
+        <input id="aiKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="${info.keyPlaceholder}" />
         <p class="ai-note">${t.keyHelp}
           <a href="${info.keyUrl}" target="_blank" rel="noopener">${info.keyUrl.replace("https://", "")}</a></p>
       </div>
