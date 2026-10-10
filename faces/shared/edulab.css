@@ -18,16 +18,16 @@
 
   /* Paper — page background is white; the sand steps are wells/alternating sections */
   --paper:    #FFFFFF;   /* page background (white)    */
-  --paper-2:  #FBF7E6;   /* alternating section        */
-  --paper-3:  #F5EDCB;   /* deepest sand / wells       */
+  --paper-2:  #F5F3F0;   /* alternating section        */
+  --paper-3:  #EAE6E0;   /* deepest sand / wells       */
   --surface:  #FFFFFF;   /* cards & sheets             */
 
   /* Ink — warm near-black text & lines */
   --ink:      #1C1917;   /* primary text               */
-  --ink-2:    #57534E;   /* secondary text             */
-  --ink-3:    #948C82;   /* muted / placeholder        */
-  --line:     #EDE7D2;   /* hairline borders           */
-  --line-2:   #DDD4B6;   /* stronger borders           */
+  --ink-2:    #44403C;   /* secondary text             */
+  --ink-3:    #625B53;   /* muted / placeholder        */
+  --line:     #E0DBD3;   /* hairline borders           */
+  --line-2:   #C9C2B7; --line-strong: #857C69; /* control borders >= 3:1 */ --track: color-mix(in srgb, var(--ink) 24%, transparent);   /* stronger borders           */
 
   /* ---- Brand: Yellow main · Blue + Green secondary · Red danger ----
      Plain saturated colours. A "-soft" tint IS the saturated colour
@@ -45,19 +45,19 @@
   /* Blue — secondary (panels, chips, correct / selected state) */
   --blue:      #1E8FC2;
   --blue-600:  #177AA8;
-  --blue-soft: #1E8FC2;
+  --blue-soft: #177AA8;
   --blue-ink:  #FFFFFF;
 
   /* Green — secondary support (chips, success) */
   --green:      #00A651;
-  --green-600:  #009444;
-  --green-soft: #00A651;
+  --green-600:  #078342;
+  --green-soft: #078342;
   --green-ink:  #FFFFFF;
 
   /* Red — danger / important / wrong (use sparingly) */
   --red:      #E5322D;
   --red-600:  #C92823;
-  --red-soft: #E5322D;
+  --red-soft: #C92823;
   --red-ink:  #FFFFFF;
 
   /* Legacy role aliases — older edulab apps use these names */
@@ -75,10 +75,10 @@
   --play-coral:  #E5322D;
 
   /* ---- Semantic ---- */
-  --success:      #00A651;  --success-soft: #00A651;  --success-ink: #FFFFFF;
+  --success:      #00A651;  --success-soft: #078342;  --success-ink: #FFFFFF;
   --warning:      #FFD500;  --warning-soft: #FFD500;  --warning-ink: #1C1917;
-  --danger:       #E5322D;  --danger-soft:  #E5322D;  --danger-ink:  #FFFFFF;
-  --info:         #1E8FC2;  --info-soft:    #1E8FC2;  --info-ink:    #FFFFFF;
+  --danger:       #E5322D;  --danger-soft:  #C92823;  --danger-ink:  #FFFFFF;
+  --info:         #1E8FC2;  --info-soft:    #177AA8;  --info-ink:    #FFFFFF;
 
   /* ---- Functional aliases ---- */
   --bg:        var(--paper);
@@ -86,7 +86,7 @@
   --fg-muted:  var(--ink-2);
   --primary:   var(--yellow);
   --on-primary:#1C1917;      /* dark text on yellow */
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--yellow) 45%, transparent);
+  --focus-ring: 0 0 0 2px var(--paper), 0 0 0 5px var(--ink);
 
   /* ============================================================
      SPACING  (4pt base)
@@ -99,8 +99,8 @@
   --r-xs: 6px; --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
 
   /* ---- Elevation — warm, low, soft ---- */
-  --shadow-sm: 0 1px 2px rgba(33,30,26,.06), 0 1px 1px rgba(33,30,26,.04);
-  --shadow-md: 0 4px 16px rgba(33,30,26,.08), 0 1px 3px rgba(33,30,26,.05);
+  --shadow-sm: 0 1px 2px rgba(33,30,26,.10), 0 2px 6px rgba(33,30,26,.06);
+  --shadow-md: 0 6px 18px rgba(33,30,26,.12), 0 1px 3px rgba(33,30,26,.08);
   --shadow-lg: 0 16px 40px rgba(33,30,26,.12), 0 3px 8px rgba(33,30,26,.06);
   --shadow-primary:  0 8px 22px color-mix(in srgb, var(--yellow) 30%, transparent);
   --shadow-marigold: var(--shadow-primary);   /* legacy alias */
